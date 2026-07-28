@@ -30,8 +30,17 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+      <body
+        className="flex min-h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
+        style={{ backgroundColor: "#09090b", color: "#f4f4f5" }}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          enableColorScheme={false}
+          disableTransitionOnChange
+        >
           {children}
         </ThemeProvider>
       </body>

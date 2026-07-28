@@ -2,6 +2,8 @@
 
 import { AuthError } from "next-auth";
 import { hash } from "bcryptjs";
+import { redirect } from "next/navigation";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -31,6 +33,38 @@ function rateLimitOrError(key: string): AuthFormState | null {
     };
   }
   return null;
+}
+
+async function signInWithCredentials(args: {
+  email: string;
+  password: string;
+  redirectTo: string;
+}): Promise<AuthFormState> {
+  try {
+    const result = await signIn("credentials", {
+      email: args.email,
+      password: args.password,
+      redirect: false,
+    });
+
+    if (!result || result.error) {
+      return { error: "Credenciales inválidas." };
+    }
+  } catch (error) {
+    if (isRedirectError(error)) {
+      throw error;
+    }
+    if (error instanceof AuthError) {
+      return { error: "Credenciales inválidas." };
+    }
+    console.error("[auth] credentials sign-in failed", error);
+    return {
+      error:
+        "No se pudo iniciar sesión. Revisa AUTH_SECRET / AUTH_URL en Vercel o inténtalo de nuevo.",
+    };
+  }
+
+  redirect(args.redirectTo);
 }
 
 export async function loginAction(
@@ -64,26 +98,15 @@ export async function loginAction(
   const callbackUrl = formData.get("callbackUrl")?.toString();
   const redirectTo = resolveAuthRedirect(callbackUrl, organizationId);
 
-  try {
-    await signIn("credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirectTo,
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "Credenciales inválidas." };
-    }
-    throw error;
-  }
-
-  return { error: null };
+  return signInWithCredentials({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    redirectTo,
+  });
 }
 
 export async function loginWithGitHubAction(formData: FormData) {
   const callbackUrl = formData.get("callbackUrl")?.toString();
-  // Prefer onboarding for first-time GitHub users; proxy will send users
-  // with an organization to the dashboard automatically if needed.
   const redirectTo = getSafeRedirectPath(callbackUrl, "/onboarding");
   await signIn("github", { redirectTo });
 }
@@ -124,20 +147,20 @@ export async function registerAction(
     },
   });
 
-  try {
-    await signIn("credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirectTo: "/onboarding",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "La cuenta se creó, pero el login automático falló." };
-    }
-    throw error;
+  const result = await signInWithCredentials({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    redirectTo: "/onboarding",
+  });
+
+  if (result.error) {
+    return {
+      error:
+        "La cuenta se creó, pero el login automático falló. Ve a Iniciar sesión con el mismo email y contraseña.",
+    };
   }
 
-  return { error: null };
+  return result;
 }
 
 export async function registerWithInviteAction(
@@ -194,18 +217,18 @@ export async function registerWithInviteAction(
     };
   }
 
-  try {
-    await signIn("credentials", {
-      email: parsed.data.email,
-      password: parsed.data.password,
-      redirectTo: "/dashboard",
-    });
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return { error: "La cuenta se creó, pero el login automático falló." };
-    }
-    throw error;
+  const result = await signInWithCredentials({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    redirectTo: "/dashboard",
+  });
+
+  if (result.error) {
+    return {
+      error:
+        "La cuenta se creó, pero el login automático falló. Ve a Iniciar sesión con el mismo email y contraseña.",
+    };
   }
 
-  return { error: null };
+  return result;
 }
