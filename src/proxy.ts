@@ -4,6 +4,12 @@ import { getToken } from "next-auth/jwt";
 
 const authPages = ["/login", "/register"];
 
+/**
+ * Edge gatekeeping only checks authentication.
+ * Organization/onboarding redirects are handled in Server Components because
+ * the JWT `organizationId` claim can lag behind the database and cause
+ * ERR_TOO_MANY_REDIRECTS loops when used here.
+ */
 export async function proxy(request: NextRequest) {
   const token = await getToken({
     req: request,
@@ -11,31 +17,18 @@ export async function proxy(request: NextRequest) {
   });
 
   const { pathname } = request.nextUrl;
-  const isAuthenticated = Boolean(token);
-  const hasOrganization = typeof token?.organizationId === "string";
+  const isAuthenticated = Boolean(token?.sub);
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const isOnboardingRoute = pathname.startsWith("/onboarding");
-  const isInviteRoute = pathname.startsWith("/invite");
   const isAuthPage = authPages.some((page) => pathname.startsWith(page));
 
   if (!isAuthenticated && (isDashboardRoute || isOnboardingRoute)) {
-    return NextResponse.redirect(new URL("/login", request.nextUrl));
-  }
-
-  if (isAuthenticated && isDashboardRoute && !hasOrganization) {
-    return NextResponse.redirect(new URL("/onboarding", request.nextUrl));
-  }
-
-  if (isAuthenticated && isOnboardingRoute && hasOrganization) {
-    return NextResponse.redirect(new URL("/dashboard", request.nextUrl));
+    const loginUrl = new URL("/login", request.nextUrl);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthenticated && isAuthPage) {
-    const destination = hasOrganization ? "/dashboard" : "/onboarding";
-    return NextResponse.redirect(new URL(destination, request.nextUrl));
-  }
-
-  if (isAuthenticated && !hasOrganization && !isOnboardingRoute && !isInviteRoute && isDashboardRoute) {
     return NextResponse.redirect(new URL("/onboarding", request.nextUrl));
   }
 
@@ -43,5 +36,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/register", "/onboarding", "/invite/:path*"],
+  matcher: ["/dashboard/:path*", "/login", "/register", "/onboarding"],
 };

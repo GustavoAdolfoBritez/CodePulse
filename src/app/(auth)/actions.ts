@@ -82,7 +82,9 @@ export async function loginAction(
 
 export async function loginWithGitHubAction(formData: FormData) {
   const callbackUrl = formData.get("callbackUrl")?.toString();
-  const redirectTo = getSafeRedirectPath(callbackUrl, "/dashboard");
+  // Prefer onboarding for first-time GitHub users; proxy will send users
+  // with an organization to the dashboard automatically if needed.
+  const redirectTo = getSafeRedirectPath(callbackUrl, "/onboarding");
   await signIn("github", { redirectTo });
 }
 

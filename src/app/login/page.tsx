@@ -6,7 +6,7 @@ import { getSafeRedirectPath } from "@/lib/safe-redirect";
 import { redirect } from "next/navigation";
 
 interface LoginPageProps {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -22,6 +22,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     );
   }
 
+  const authError =
+    params.error === "Configuration"
+      ? "Auth no está bien configurado en el servidor. Revisa AUTH_SECRET, AUTH_URL y las credenciales de GitHub en Vercel."
+      : params.error === "AccessDenied"
+        ? "Acceso denegado."
+        : params.error === "OAuthAccountNotLinked"
+          ? "Ese email ya existe con otro método de login. Entra con email/contraseña o vincula la cuenta."
+          : params.error
+            ? "No se pudo iniciar sesión. Inténtalo de nuevo."
+            : null;
+
   return (
     <AuthShell
       title="Iniciar sesión"
@@ -29,6 +40,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       alternateHref="/register"
       alternateLabel="¿No tienes cuenta? Crear una cuenta"
     >
+      {authError ? (
+        <p className="mb-4 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950 dark:text-rose-300">
+          {authError}
+        </p>
+      ) : null}
       <LoginForm callbackUrl={safeCallback || undefined} />
     </AuthShell>
   );

@@ -11,18 +11,29 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+const githubConfigured = Boolean(
+  process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+);
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/login",
+    error: "/login",
   },
   providers: [
-    GitHub({
-      clientId: process.env.GITHUB_CLIENT_ID ?? "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
-    }),
+    ...(githubConfigured
+      ? [
+          GitHub({
+            clientId: process.env.GITHUB_CLIENT_ID!,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
     Credentials({
       name: "Credentials",
       credentials: {
@@ -74,34 +85,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return token;
       }
 
-      const user = await prisma.user.findUnique({
-        where: { id: token.sub },
-        include: {
-          memberships: {
-            include: { organization: true },
-            orderBy: { createdAt: "asc" },
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: token.sub },
+          include: {
+            memberships: {
+              include: { organization: true },
+              orderBy: { createdAt: "asc" },
+            },
           },
-        },
-      });
-
-      if (!user) {
-        return token;
-      }
-
-      const activeMembership =
-        user.memberships.find((membership) => membership.organizationId === user.currentOrganizationId) ??
-        user.memberships[0];
-
-      token.name = user.name;
-      token.email = user.email;
-      token.organizationId = activeMembership?.organizationId ?? null;
-      token.role = activeMembership?.role ?? user.role;
-
-      if (activeMembership && user.currentOrganizationId !== activeMembership.organizationId) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { currentOrganizationId: activeMembership.organizationId },
         });
+
+        if (!user) {
+          token.organizationId = null;
+          return token;
+        }
+
+        const activeMembership =
+          user.memberships.find(
+            (membership) => membership.organizationId === user.currentOrganizationId
+          ) ?? user.memberships[0];
+
+        token.name = user.name;
+        token.email = user.email;
+        token.organizationId = activeMembership?.organizationId ?? null;
+        token.role = activeMembership?.role ?? user.role;
+
+        if (activeMembership && user.currentOrganizationId !== activeMembership.organizationId) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { currentOrganizationId: activeMembership.organizationId },
+          });
+        }
+      } catch (error) {
+        console.error("[auth.jwt] failed to refresh organization claims", error);
       }
 
       return token;
@@ -110,7 +127,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.sub) {
         session.user.id = token.sub;
         session.user.organizationId =
-          typeof token.organizationId === "string" ? token.organizationId : null;
+          typeof token.organizationId === "string" && token.organizationId.length > 0
+            ? token.organizationId
+            : null;
         session.user.role = typeof token.role === "string" ? token.role : null;
       }
       return session;

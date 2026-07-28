@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { OnboardingWizard } from "./OnboardingWizard";
 
+export const dynamic = "force-dynamic";
+
 export default async function OnboardingPage() {
   const session = await auth();
   if (!session?.user?.id) {
-    redirect("/login");
+    redirect("/login?callbackUrl=%2Fonboarding");
   }
 
   const membershipCount = await prisma.organizationMembership.count({
