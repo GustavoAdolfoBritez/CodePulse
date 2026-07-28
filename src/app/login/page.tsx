@@ -17,6 +17,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     : "";
 
   if (session?.user) {
+    // Only redirect when the *server* session is valid (not just a cookie present).
     redirect(
       safeCallback || getPostAuthRedirectPath(session.user.organizationId)
     );
