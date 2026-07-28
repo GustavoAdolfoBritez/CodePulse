@@ -1,0 +1,254 @@
+// Prisma schema for CodePulse
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+/// Where the raw data for a Project comes from.
+enum ProjectSourceType {
+  GITHUB_REPO
+  API_ENDPOINT
+}
+
+/// Lifecycle of an async analysis Job (processed via BullMQ).
+enum AnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+/// Severity assigned by the AI / rules engine to an insight.
+enum InsightSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+/// Severity/priority of a notification shown to the organization.
+enum NotificationType {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+/// A tenant (company/team) in this B2B SaaS. All data is scoped to one.
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  webhookApiKey String?
+
+  users     User[] @relation("HomeOrganization")
+  currentUsers User[] @relation("CurrentOrganization")
+  memberships OrganizationMembership[]
+  invitations OrganizationInvitation[]
+  projects  Project[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+/// Pending email invitation to join an organization.
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  email          String
+  role           Role         @default(MEMBER)
+  token          String       @unique
+  expiresAt      DateTime
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, email])
+  @@index([token])
+  @@index([organizationId])
+  @@map("organization_invitations")
+}
+
+/// A member of an Organization who can access the dashboard.
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  emailVerified  DateTime?
+  name           String?
+  image          String?
+  passwordHash   String?
+  role           Role     @default(MEMBER)
+
+  organization   Organization? @relation("HomeOrganization", fields: [organizationId], references: [id], onDelete: SetNull)
+  organizationId String?
+
+  currentOrganization   Organization? @relation("CurrentOrganization", fields: [currentOrganizationId], references: [id], onDelete: SetNull)
+  currentOrganizationId String?
+
+  memberships    OrganizationMembership[]
+  accounts       Account[]
+  sessions       Session[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([currentOrganizationId])
+  @@map("users")
+}
+
+model OrganizationMembership {
+  id             String       @id @default(cuid())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  role           Role         @default(MEMBER)
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@map("organization_memberships")
+}
+
+/// A monitored source: either a GitHub repository or an external API.
+model Project {
+  id                   String            @id @default(cuid())
+  name                 String
+  sourceType           ProjectSourceType @default(GITHUB_REPO)
+
+  /// Populated when sourceType = GITHUB_REPO, e.g. https://github.com/org/repo
+  githubRepoUrl        String?
+  /// Populated when sourceType = API_ENDPOINT, e.g. https://api.example.com
+  apiUrl               String?
+  /// Optional GitHub App installation id, used to fetch data on behalf of the org.
+  githubInstallationId String?
+
+  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId       String
+
+  analysisResults      AnalysisResult[]
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([organizationId])
+  @@map("projects")
+}
+
+/// The output of a single (async) analysis run for a Project, including
+/// the AI-generated insight/suggestion and the metrics that back it.
+model AnalysisResult {
+  id           String          @id @default(cuid())
+
+  project      Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    String
+
+  status       AnalysisStatus  @default(PENDING)
+  severity     InsightSeverity @default(INFO)
+
+  /// Overall health/quality score (0-100) assigned by the LLM for this run.
+  aiScore      Int?
+  /// Short human-readable summary, e.g. "3 new error spikes detected".
+  summary      String
+  /// Markdown-formatted optimization suggestions generated by the LLM
+  /// (Vercel AI SDK + OpenAI/Anthropic).
+  aiInsight    String?         @db.Text
+  /// Arbitrary structured metrics captured for this run (commits fetched,
+  /// file counts, latency samples, etc).
+  rawMetrics   Json?
+
+  errorCount   Int             @default(0)
+  latencyMsP95 Float?
+
+  /// Commit SHA, log batch id, or other reference to what was analyzed.
+  sourceRef    String?
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime        @default(now())
+
+  @@index([projectId])
+  @@index([status])
+  @@map("analysis_results")
+}
+
+/// B2B alert/notification generated from risky analyses or system events.
+model Notification {
+  id             String           @id @default(cuid())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+
+  title          String
+  message        String           @db.Text
+  type           NotificationType @default(INFO)
+  read           Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  @@index([organizationId, read, createdAt])
+  @@map("notifications")
+}
+
+model Account {
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
