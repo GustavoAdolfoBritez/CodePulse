@@ -1,64 +1,70 @@
 "use client";
 
 import { useActionState } from "react";
-import { FolderGit2, Loader2 } from "lucide-react";
 import { initialAuthFormState } from "@/app/(auth)/auth-state";
 import { loginWithGitHubAction, registerAction } from "@/app/(auth)/actions";
+
+const fieldStyle: React.CSSProperties = {
+  display: "block",
+  width: "100%",
+  borderRadius: 12,
+  border: "1px solid #3f3f46",
+  backgroundColor: "#09090b",
+  color: "#fafafa",
+  padding: "10px 12px",
+  fontSize: 14,
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: 6,
+  fontSize: 12,
+  color: "#a1a1aa",
+};
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, initialAuthFormState);
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: "grid", gap: 16 }}>
       <form action={loginWithGitHubAction}>
         <button
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "1px solid #3f3f46",
+            backgroundColor: "#09090b",
+            color: "#e4e4e7",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
         >
-          <FolderGit2 className="h-4 w-4" />
           Registrarme con GitHub
         </button>
       </form>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-zinc-400 dark:bg-zinc-900">o crear cuenta local</span>
-        </div>
-      </div>
+      <p style={{ textAlign: "center", fontSize: 12, color: "#71717a", margin: 0 }}>
+        o crear cuenta local
+      </p>
 
-      <form action={formAction} className="space-y-3">
+      <form action={formAction} style={{ display: "grid", gap: 12 }}>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="name">
+          <label style={labelStyle} htmlFor="name">
             Nombre
           </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-          />
+          <input id="name" name="name" type="text" required style={fieldStyle} />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="email">
+          <label style={labelStyle} htmlFor="email">
             Email
           </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-          />
+          <input id="email" name="email" type="email" required style={fieldStyle} />
         </div>
         <div>
-          <label
-            className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400"
-            htmlFor="password"
-          >
+          <label style={labelStyle} htmlFor="password">
             Contraseña
           </label>
           <input
@@ -67,12 +73,21 @@ export function RegisterForm() {
             type="password"
             required
             minLength={8}
-            className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+            style={fieldStyle}
           />
         </div>
 
         {state.error ? (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950 dark:text-rose-300">
+          <p
+            style={{
+              margin: 0,
+              borderRadius: 8,
+              backgroundColor: "#450a0a",
+              color: "#fecaca",
+              padding: "8px 12px",
+              fontSize: 12,
+            }}
+          >
             {state.error}
           </p>
         ) : null}
@@ -80,16 +95,25 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "none",
+            backgroundColor: "#4f46e5",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: pending ? "not-allowed" : "pointer",
+            opacity: pending ? 0.6 : 1,
+          }}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Crear cuenta
+          {pending ? "Creando..." : "Crear cuenta"}
         </button>
       </form>
 
-      <p className="text-xs text-zinc-400">
-        Después del registro configurarás tu organización en el flujo de onboarding. Usa al menos 8
-        caracteres con letras y números.
+      <p style={{ margin: 0, fontSize: 12, color: "#71717a" }}>
+        Usa al menos 8 caracteres con letras y números. Luego configurarás tu organización.
       </p>
     </div>
   );
