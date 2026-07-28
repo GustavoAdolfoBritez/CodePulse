@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { AuthShell } from "@/components/auth/AuthShell";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
+import { getSafeRedirectPath } from "@/lib/safe-redirect";
 import { redirect } from "next/navigation";
 
 interface LoginPageProps {
@@ -11,8 +12,14 @@ interface LoginPageProps {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const session = await auth();
+  const safeCallback = params.callbackUrl
+    ? getSafeRedirectPath(params.callbackUrl, "")
+    : "";
+
   if (session?.user) {
-    redirect(params.callbackUrl ?? getPostAuthRedirectPath(session.user.organizationId));
+    redirect(
+      safeCallback || getPostAuthRedirectPath(session.user.organizationId)
+    );
   }
 
   return (
@@ -22,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       alternateHref="/register"
       alternateLabel="¿No tienes cuenta? Crear una cuenta"
     >
-      <LoginForm callbackUrl={params.callbackUrl} />
+      <LoginForm callbackUrl={safeCallback || undefined} />
     </AuthShell>
   );
 }

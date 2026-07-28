@@ -1,21 +1,31 @@
 import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
+import crypto from "node:crypto";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const ownerPasswordHash = await hash("password123", 10);
-  const adminPasswordHash = await hash("password123", 10);
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PROD_SEED !== "true") {
+    throw new Error(
+      "Refusing to seed a production database. Set ALLOW_PROD_SEED=true only if you intentionally want demo data."
+    );
+  }
+
+  const ownerPasswordHash = await hash("password123", 12);
+  const adminPasswordHash = await hash("password123", 12);
+  const inviteToken = crypto.randomBytes(32).toString("hex");
+  const webhookApiKey = `cp_wh_${crypto.randomBytes(18).toString("hex")}`;
+  const betaWebhookApiKey = `cp_wh_${crypto.randomBytes(18).toString("hex")}`;
 
   const organization = await prisma.organization.upsert({
     where: { slug: "acme-inc" },
     update: {
-      webhookApiKey: "cp_wh_seed_acme_primary",
+      webhookApiKey,
     },
     create: {
       name: "Acme Inc.",
       slug: "acme-inc",
-      webhookApiKey: "cp_wh_seed_acme_primary",
+      webhookApiKey,
       users: {
         create: {
           email: "owner@acme.dev",
@@ -30,12 +40,12 @@ async function main() {
   const secondOrganization = await prisma.organization.upsert({
     where: { slug: "beta-labs" },
     update: {
-      webhookApiKey: "cp_wh_seed_beta_secondary",
+      webhookApiKey: betaWebhookApiKey,
     },
     create: {
       name: "Beta Labs",
       slug: "beta-labs",
-      webhookApiKey: "cp_wh_seed_beta_secondary",
+      webhookApiKey: betaWebhookApiKey,
     },
   });
 
@@ -293,14 +303,14 @@ async function main() {
     },
     update: {
       role: "MEMBER",
-      token: "seed-invite-token-acme",
+      token: inviteToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
     create: {
       organizationId: organization.id,
       email: "invited@acme.dev",
       role: "MEMBER",
-      token: "seed-invite-token-acme",
+      token: inviteToken,
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
@@ -308,6 +318,7 @@ async function main() {
   console.log(
     `Seeded organization "${organization.name}" with projects "${githubProject.name}" and "${apiProject.name}"`
   );
+  console.log(`Demo invite token (local only): ${inviteToken}`);
 }
 
 main()

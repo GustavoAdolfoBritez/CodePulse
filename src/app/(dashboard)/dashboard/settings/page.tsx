@@ -23,6 +23,10 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const params = await searchParams;
   const context = await getCurrentOrganizationContext();
   const canManageOrganization = context!.activeRole === "OWNER" || context!.activeRole === "ADMIN";
+  const isOwner = context!.activeRole === "OWNER";
+  const maskedWebhookKey = context!.organization.webhookApiKey
+    ? `${context!.organization.webhookApiKey.slice(0, 8)}${"•".repeat(18)}`
+    : "No configurada";
 
   const [members, pendingInvitations] = await Promise.all([
     prisma.organizationMembership.findMany({
@@ -125,11 +129,14 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   Webhook API Key
                 </label>
                 <input
-                  name="webhookApiKey"
-                  defaultValue={context!.organization.webhookApiKey ?? ""}
-                  disabled={!canManageOrganization}
-                  className="block w-full rounded-xl border-zinc-200 bg-white font-mono text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+                  value={canManageOrganization ? maskedWebhookKey : "••••••••••••••••"}
+                  disabled
+                  readOnly
+                  className="block w-full rounded-xl border-zinc-200 bg-zinc-50 font-mono text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400"
                 />
+                <p className="mt-1.5 text-xs text-zinc-400">
+                  La clave solo se puede rotar. Nunca se edita a mano ni se muestra completa.
+                </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <button
@@ -205,7 +212,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                 disabled={!canManageOrganization}
                 className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
               >
-                <option value="ADMIN">ADMIN</option>
+                {isOwner ? <option value="ADMIN">ADMIN</option> : null}
                 <option value="MEMBER">MEMBER</option>
               </select>
               <button
@@ -247,9 +254,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                       Rol {invitation.role} · expira{" "}
                       {formatDistanceToNow(invitation.expiresAt, { addSuffix: true, locale: es })}
                     </p>
-                    <p className="mt-1 break-all font-mono text-[11px] text-zinc-400">
-                      {appUrl}/invite/{invitation.token}
-                    </p>
+                    {canManageOrganization ? (
+                      <p className="mt-1 break-all font-mono text-[11px] text-zinc-400">
+                        {appUrl}/invite/{invitation.token}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-zinc-400">
+                        Enlace oculto. Solo OWNER/ADMIN pueden verlo.
+                      </p>
+                    )}
                   </div>
                   {canManageOrganization ? (
                     <form action={revokeInvitationAction}>

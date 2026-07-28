@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganizationContext } from "@/lib/current-org";
 import { enqueueAnalysisJob } from "@/server/queue/queues";
+import { assertSafeGithubRepoUrl, assertSafeOutboundUrl } from "@/lib/url-safety";
 
 const createProjectSchema = z.object({
   name: z.string().min(1),
@@ -38,6 +39,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  try {
+    if (parsed.data.sourceType === "GITHUB_REPO" && parsed.data.githubRepoUrl) {
+      parsed.data.githubRepoUrl = assertSafeGithubRepoUrl(parsed.data.githubRepoUrl);
+    }
+    if (parsed.data.sourceType === "API_ENDPOINT" && parsed.data.apiUrl) {
+      parsed.data.apiUrl = assertSafeOutboundUrl(parsed.data.apiUrl);
+    }
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "URL no permitida." },
+      { status: 400 }
+    );
+  }
+
   const project = await prisma.project.create({
     data: {
       ...parsed.data,
@@ -45,8 +60,6 @@ export async function POST(request: Request) {
     },
   });
 
-  // Kick off the first analysis in the background as soon as a project is
-  // connected — this is what enqueues the Job onto `analyze-repo-queue`.
   const target = project.githubRepoUrl ?? project.apiUrl ?? "";
   if (target) {
     await enqueueAnalysisJob({

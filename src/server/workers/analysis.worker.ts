@@ -21,6 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { generateRepoInsight } from "@/server/ai/client";
 import { buildApiAnalysisContext, buildRepoAnalysisContext } from "@/server/ai/prompts";
 import { fetchRepoSnapshot, parseRepoUrl, type RepoSnapshot } from "@/lib/github";
+import { assertSafeOutboundUrl } from "@/lib/url-safety";
 
 const API_PROBE_TIMEOUT_MS = 8_000;
 
@@ -63,6 +64,7 @@ async function buildGithubContext(target: string): Promise<{ context: string; sn
 }
 
 async function buildApiContext(target: string) {
+  const safeTarget = assertSafeOutboundUrl(target);
   const startedAt = Date.now();
   let httpStatus: number | null = null;
   let errorMessage: string | null = null;
@@ -71,7 +73,14 @@ async function buildApiContext(target: string) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), API_PROBE_TIMEOUT_MS);
-    const response = await fetch(target, { method: "GET", signal: controller.signal });
+    const response = await fetch(safeTarget, {
+      method: "GET",
+      signal: controller.signal,
+      redirect: "error",
+      headers: {
+        "User-Agent": "CodePulse-AnalysisWorker/1.0",
+      },
+    });
     clearTimeout(timeout);
     httpStatus = response.status;
     reachable = true;
@@ -82,7 +91,13 @@ async function buildApiContext(target: string) {
   const latencyMs = Date.now() - startedAt;
 
   return {
-    context: buildApiAnalysisContext({ apiUrl: target, reachable, httpStatus, latencyMs, errorMessage }),
+    context: buildApiAnalysisContext({
+      apiUrl: safeTarget,
+      reachable,
+      httpStatus,
+      latencyMs,
+      errorMessage,
+    }),
     reachable,
     httpStatus,
     latencyMs,

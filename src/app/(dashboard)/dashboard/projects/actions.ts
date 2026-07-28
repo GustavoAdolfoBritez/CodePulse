@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganization } from "@/lib/current-org";
 import { normalizeRepoInput, parseRepoUrl } from "@/lib/github";
+import { assertSafeGithubRepoUrl } from "@/lib/url-safety";
 import { enqueueAnalysisJob } from "@/server/queue/queues";
 import type { ActionState } from "./action-types";
 
@@ -31,7 +32,7 @@ export async function createProjectAction(
   let owner: string;
   let repo: string;
   try {
-    githubRepoUrl = normalizeRepoInput(parsed.data.input);
+    githubRepoUrl = assertSafeGithubRepoUrl(normalizeRepoInput(parsed.data.input));
     ({ owner, repo } = parseRepoUrl(githubRepoUrl));
   } catch {
     return {

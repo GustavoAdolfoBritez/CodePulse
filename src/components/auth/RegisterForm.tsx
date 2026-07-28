@@ -66,6 +66,7 @@ export function RegisterForm() {
             name="password"
             type="password"
             required
+            minLength={8}
             className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
           />
         </div>
@@ -87,7 +88,8 @@ export function RegisterForm() {
       </form>
 
       <p className="text-xs text-zinc-400">
-        Después del registro configurarás tu organización en el flujo de onboarding.
+        Después del registro configurarás tu organización en el flujo de onboarding. Usa al menos 8
+        caracteres con letras y números.
       </p>
     </div>
   );

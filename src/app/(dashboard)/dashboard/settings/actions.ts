@@ -36,13 +36,12 @@ export async function updateOrganizationAction(formData: FormData) {
   const context = await getCurrentOrganizationContext();
   assertCanManageOrganization(context!.activeRole);
   const organizationName = z.string().min(2).parse(formData.get("organizationName"));
-  const webhookApiKey = z.string().min(8).parse(formData.get("webhookApiKey"));
 
+  // Webhook key is rotate-only — never accept free-form values from the form.
   await prisma.organization.update({
     where: { id: context!.organization.id },
     data: {
       name: organizationName,
-      webhookApiKey,
     },
   });
 
@@ -101,6 +100,15 @@ export async function sendInvitationAction(formData: FormData) {
       role: formData.get("role"),
     });
 
+  // Only OWNER can invite ADMIN — prevents lateral privilege escalation.
+  if (parsed.role === "ADMIN" && context!.activeRole !== "OWNER") {
+    redirect(
+      `/dashboard/settings?inviteError=${encodeURIComponent(
+        "Solo el OWNER puede invitar administradores."
+      )}`
+    );
+  }
+
   try {
     await createOrganizationInvitation({
       organizationId: context!.organization.id,
@@ -155,5 +163,6 @@ export async function acceptInviteAction(formData: FormData) {
 
 export async function loginWithInviteAction(formData: FormData) {
   const token = z.string().min(1).parse(formData.get("token"));
-  await signIn("github", { redirectTo: `/invite/${token}` });
+  // Token is already opaque path segment; keep redirect same-origin relative.
+  await signIn("github", { redirectTo: `/invite/${encodeURIComponent(token)}` });
 }

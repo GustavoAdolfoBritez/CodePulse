@@ -5,18 +5,33 @@ import { hash } from "bcryptjs";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getPostAuthRedirectPath } from "@/lib/auth-redirect";
+import { resolveAuthRedirect } from "@/lib/auth-redirect";
+import { getSafeRedirectPath } from "@/lib/safe-redirect";
 import { acceptOrganizationInvitation } from "@/lib/invitations";
+import { passwordSchema } from "@/lib/password-policy";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import type { AuthFormState } from "./auth-state";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un email válido."),
-  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres."),
+  password: z.string().min(1, "Ingresa tu contraseña."),
 });
 
-const registerSchema = loginSchema.extend({
+const registerSchema = z.object({
   name: z.string().min(2, "Ingresa tu nombre."),
+  email: z.string().email("Ingresa un email válido."),
+  password: passwordSchema,
 });
+
+function rateLimitOrError(key: string): AuthFormState | null {
+  const result = consumeRateLimit({ key, limit: 10, windowMs: 15 * 60 * 1000 });
+  if (!result.ok) {
+    return {
+      error: `Demasiados intentos. Espera ${result.retryAfterSec}s e inténtalo de nuevo.`,
+    };
+  }
+  return null;
+}
 
 export async function loginAction(
   _prevState: AuthFormState,
@@ -31,6 +46,11 @@ export async function loginAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
+  const limited = rateLimitOrError(`login:${parsed.data.email.toLowerCase()}`);
+  if (limited) {
+    return limited;
+  }
+
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
     select: {
@@ -42,7 +62,7 @@ export async function loginAction(
   const organizationId =
     user?.currentOrganizationId ?? user?.memberships[0]?.organizationId ?? null;
   const callbackUrl = formData.get("callbackUrl")?.toString();
-  const redirectTo = callbackUrl || getPostAuthRedirectPath(organizationId);
+  const redirectTo = resolveAuthRedirect(callbackUrl, organizationId);
 
   try {
     await signIn("credentials", {
@@ -62,7 +82,8 @@ export async function loginAction(
 
 export async function loginWithGitHubAction(formData: FormData) {
   const callbackUrl = formData.get("callbackUrl")?.toString();
-  await signIn("github", { redirectTo: callbackUrl || "/dashboard" });
+  const redirectTo = getSafeRedirectPath(callbackUrl, "/dashboard");
+  await signIn("github", { redirectTo });
 }
 
 export async function registerAction(
@@ -79,6 +100,11 @@ export async function registerAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
+  const limited = rateLimitOrError(`register:${parsed.data.email.toLowerCase()}`);
+  if (limited) {
+    return limited;
+  }
+
   const existingUser = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
@@ -86,7 +112,7 @@ export async function registerAction(
     return { error: "Ya existe una cuenta con ese email." };
   }
 
-  const passwordHash = await hash(parsed.data.password, 10);
+  const passwordHash = await hash(parsed.data.password, 12);
 
   await prisma.user.create({
     data: {
@@ -131,6 +157,11 @@ export async function registerWithInviteAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
   }
 
+  const limited = rateLimitOrError(`register-invite:${parsed.data.email.toLowerCase()}`);
+  if (limited) {
+    return limited;
+  }
+
   const existingUser = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
@@ -138,7 +169,7 @@ export async function registerWithInviteAction(
     return { error: "Ya existe una cuenta con ese email. Inicia sesión para aceptar la invitación." };
   }
 
-  const passwordHash = await hash(parsed.data.password, 10);
+  const passwordHash = await hash(parsed.data.password, 12);
 
   const user = await prisma.user.create({
     data: {
