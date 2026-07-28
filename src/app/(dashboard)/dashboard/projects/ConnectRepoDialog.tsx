@@ -85,13 +85,22 @@ export function ConnectRepoDialog() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
-    const formData = new FormData(event.currentTarget);
-    const result = await createProjectAction(initialActionState, formData);
-    setPending(false);
-    setState(result);
-    if (result.success) {
-      formRef.current?.reset();
-      setOpen(false);
+    setState(initialActionState);
+    try {
+      const formData = new FormData(event.currentTarget);
+      const result = await createProjectAction(initialActionState, formData);
+      setState(result);
+      if (result.success) {
+        formRef.current?.reset();
+        setOpen(false);
+      }
+    } catch {
+      setState({
+        success: false,
+        error: "No se pudo conectar el repositorio. Inténtalo de nuevo.",
+      });
+    } finally {
+      setPending(false);
     }
   }
 

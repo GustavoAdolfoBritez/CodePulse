@@ -1,4 +1,7 @@
+import type { Redis } from "ioredis";
 import { getRedisConnection } from "@/lib/redis";
 
-/** Shared connection options passed to every BullMQ Queue/Worker/QueueEvents. */
-export const queueConnection = getRedisConnection();
+/** Shared Redis connection for BullMQ Queue/Worker/QueueEvents. */
+export function getQueueConnection(): Redis {
+  return getRedisConnection();
+}

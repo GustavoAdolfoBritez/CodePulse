@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganization } from "@/lib/current-org";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
@@ -52,13 +51,6 @@ export async function Header({ eyebrow, title, subtitle, actions }: HeaderProps)
 
       <div className="flex shrink-0 items-center gap-2">
         {actions}
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
-          Last 7 days
-          <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-        </button>
         <NotificationBell notifications={notifications} unreadCount={unreadCount} />
       </div>
     </header>

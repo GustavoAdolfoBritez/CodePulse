@@ -1,9 +1,5 @@
-"use client";
-
-import { useActionState } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
-import { FolderGit2, Loader2, Mail, Users } from "lucide-react";
-import { initialAuthFormState } from "@/app/(auth)/auth-state";
 import { registerWithInviteAction } from "@/app/(auth)/actions";
 import { acceptInviteAction, loginWithInviteAction } from "@/app/(dashboard)/dashboard/settings/actions";
 
@@ -17,6 +13,18 @@ interface InviteAcceptPanelProps {
   emailMatches: boolean;
 }
 
+const fieldStyle: CSSProperties = {
+  display: "block",
+  width: "100%",
+  boxSizing: "border-box",
+  borderRadius: 12,
+  border: "1px solid #3f3f46",
+  backgroundColor: "#09090b",
+  color: "#fafafa",
+  padding: "12px 14px",
+  fontSize: 14,
+};
+
 export function InviteAcceptPanel({
   token,
   organizationName,
@@ -26,22 +34,29 @@ export function InviteAcceptPanel({
   sessionEmail,
   emailMatches,
 }: InviteAcceptPanelProps) {
-  const [state, formAction, pending] = useActionState(registerWithInviteAction, initialAuthFormState);
-
   if (isAuthenticated && emailMatches) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Sesión activa como <span className="font-medium text-zinc-900 dark:text-white">{sessionEmail}</span>.
-          Acepta la invitación para unirte a la organización.
+      <div style={{ display: "grid", gap: 16 }}>
+        <p style={{ margin: 0, fontSize: 14, color: "#a1a1aa" }}>
+          Sesión activa como <strong style={{ color: "#fafafa" }}>{sessionEmail}</strong>. Acepta la
+          invitación para unirte a la organización.
         </p>
         <form action={acceptInviteAction}>
           <input type="hidden" name="token" value={token} />
           <button
             type="submit"
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500"
+            style={{
+              width: "100%",
+              borderRadius: 12,
+              border: "none",
+              backgroundColor: "#4f46e5",
+              color: "#fff",
+              padding: "12px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
-            <Users className="h-4 w-4" />
             Unirme a {organizationName}
           </button>
         </form>
@@ -51,14 +66,30 @@ export function InviteAcceptPanel({
 
   if (isAuthenticated && !emailMatches) {
     return (
-      <div className="space-y-4">
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-          Estás conectado como {sessionEmail}, pero la invitación fue enviada a {invitedEmail}. Cierra sesión e
-          ingresa con el email correcto.
+      <div style={{ display: "grid", gap: 16 }}>
+        <p
+          style={{
+            margin: 0,
+            borderRadius: 8,
+            backgroundColor: "#451a03",
+            color: "#fdba74",
+            padding: "10px 12px",
+            fontSize: 13,
+          }}
+        >
+          Estás conectado como {sessionEmail}, pero la invitación fue enviada a {invitedEmail}.
         </p>
         <Link
           href={`/login?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
-          className="inline-flex w-full items-center justify-center rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          style={{
+            display: "block",
+            textAlign: "center",
+            borderRadius: 12,
+            border: "1px solid #3f3f46",
+            padding: "12px 16px",
+            color: "#e4e4e7",
+            textDecoration: "none",
+          }}
         >
           Cambiar cuenta
         </Link>
@@ -67,56 +98,53 @@ export function InviteAcceptPanel({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-900 dark:bg-indigo-950/30">
-        <div className="flex items-start gap-3">
-          <Mail className="mt-0.5 h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-          <div>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-white">{organizationName}</p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Te invitaron como <span className="font-medium">{role}</span> con el email{" "}
-              <span className="font-medium">{invitedEmail}</span>.
-            </p>
-          </div>
-        </div>
+    <div style={{ display: "grid", gap: 16 }}>
+      <div
+        style={{
+          borderRadius: 16,
+          border: "1px solid #312e81",
+          backgroundColor: "rgba(49,46,129,0.25)",
+          padding: 16,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#fafafa" }}>{organizationName}</p>
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: "#a1a1aa" }}>
+          Te invitaron como <strong>{role}</strong> con el email <strong>{invitedEmail}</strong>.
+        </p>
       </div>
 
       <form action={loginWithInviteAction}>
         <input type="hidden" name="token" value={token} />
         <button
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "1px solid #3f3f46",
+            backgroundColor: "#09090b",
+            color: "#e4e4e7",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+          }}
         >
-          <FolderGit2 className="h-4 w-4" />
           Continuar con GitHub
         </button>
       </form>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-zinc-200 dark:border-zinc-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-white px-2 text-zinc-400 dark:bg-zinc-900">o crear cuenta</span>
-        </div>
-      </div>
+      <p style={{ textAlign: "center", fontSize: 12, color: "#71717a", margin: 0 }}>o crear cuenta</p>
 
-      <form action={formAction} className="space-y-3">
+      <form action={registerWithInviteAction} style={{ display: "grid", gap: 12 }}>
         <input type="hidden" name="token" value={token} />
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="name">
+          <label htmlFor="name" style={{ display: "block", marginBottom: 6, fontSize: 12, color: "#a1a1aa" }}>
             Nombre
           </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            required
-            className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-          />
+          <input id="name" name="name" type="text" required style={fieldStyle} />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="email">
+          <label htmlFor="email" style={{ display: "block", marginBottom: 6, fontSize: 12, color: "#a1a1aa" }}>
             Email
           </label>
           <input
@@ -126,46 +154,41 @@ export function InviteAcceptPanel({
             required
             readOnly
             defaultValue={invitedEmail}
-            className="block w-full rounded-xl border-zinc-200 bg-zinc-50 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"
+            style={{ ...fieldStyle, backgroundColor: "#27272a" }}
           />
         </div>
         <div>
           <label
-            className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400"
             htmlFor="password"
+            style={{ display: "block", marginBottom: 6, fontSize: 12, color: "#a1a1aa" }}
           >
             Contraseña
           </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-          />
+          <input id="password" name="password" type="password" required minLength={8} style={fieldStyle} />
         </div>
-
-        {state.error ? (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-600 dark:bg-rose-950 dark:text-rose-300">
-            {state.error}
-          </p>
-        ) : null}
-
         <button
           type="submit"
-          disabled={pending}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{
+            width: "100%",
+            borderRadius: 12,
+            border: "none",
+            backgroundColor: "#4f46e5",
+            color: "#fff",
+            padding: "12px 16px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Crear cuenta y unirme
         </button>
       </form>
 
-      <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+      <p style={{ textAlign: "center", fontSize: 14, color: "#a1a1aa", margin: 0 }}>
         ¿Ya tienes cuenta?{" "}
         <Link
           href={`/login?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
-          className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          style={{ color: "#818cf8", fontWeight: 500 }}
         >
           Iniciar sesión
         </Link>

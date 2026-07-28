@@ -19,45 +19,62 @@ export function AuthShell({
 }: AuthShellProps) {
   return (
     <main
-      className="flex min-h-screen items-center justify-center px-4 py-10"
-      style={{ backgroundColor: "#09090b" }}
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 16px",
+        backgroundColor: "#09090b",
+        color: "#f4f4f5",
+        fontFamily:
+          "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+      }}
     >
       <div
-        className="w-full max-w-md rounded-3xl border p-8 shadow-sm"
         style={{
+          width: "100%",
+          maxWidth: 440,
+          borderRadius: 24,
+          border: "1px solid #27272a",
           backgroundColor: "#18181b",
-          borderColor: "#27272a",
-          color: "#f4f4f5",
+          padding: 32,
+          boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
         }}
       >
-        <div className="mb-6 flex items-center gap-3">
-          <span
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold"
-            style={{ backgroundColor: "#fafafa", color: "#09090b" }}
-          >
-            CP
-          </span>
-          <div>
-            <p className="text-base font-semibold" style={{ color: "#fafafa" }}>
-              {siteConfig.name}
-            </p>
-            <p className="text-xs" style={{ color: "#a1a1aa" }}>
-              {siteConfig.description}
-            </p>
-          </div>
-        </div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: 28,
+            fontWeight: 700,
+            letterSpacing: "-0.03em",
+            color: "#fafafa",
+          }}
+        >
+          {siteConfig.name}
+        </p>
+        <p style={{ margin: "8px 0 0", fontSize: 13, color: "#a1a1aa", lineHeight: 1.5 }}>
+          {siteConfig.description}
+        </p>
 
-        <h1 className="text-2xl font-semibold" style={{ color: "#fafafa" }}>
+        <h1
+          style={{
+            margin: "28px 0 0",
+            fontSize: 24,
+            fontWeight: 600,
+            color: "#fafafa",
+          }}
+        >
           {title}
         </h1>
-        <p className="mt-2 text-sm" style={{ color: "#a1a1aa" }}>
+        <p style={{ margin: "8px 0 0", fontSize: 14, color: "#a1a1aa", lineHeight: 1.5 }}>
           {subtitle}
         </p>
 
-        <div className="mt-6">{children}</div>
+        <div style={{ marginTop: 24 }}>{children}</div>
 
-        <p className="mt-6 text-sm" style={{ color: "#a1a1aa" }}>
-          <Link href={alternateHref} className="font-medium hover:underline" style={{ color: "#818cf8" }}>
+        <p style={{ margin: "24px 0 0", fontSize: 14, color: "#a1a1aa" }}>
+          <Link href={alternateHref} style={{ color: "#818cf8", fontWeight: 500 }}>
             {alternateLabel}
           </Link>
         </p>

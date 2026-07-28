@@ -64,32 +64,6 @@ export function AnalyticsFilters({ filters, showSearch = true }: AnalyticsFilter
         </select>
       </div>
 
-      <div className="min-w-[150px]">
-        <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="from">
-          Desde
-        </label>
-        <input
-          id="from"
-          name="from"
-          type="date"
-          defaultValue={filters.from}
-          className="block w-full rounded-lg border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-        />
-      </div>
-
-      <div className="min-w-[150px]">
-        <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400" htmlFor="to">
-          Hasta
-        </label>
-        <input
-          id="to"
-          name="to"
-          type="date"
-          defaultValue={filters.to}
-          className="block w-full rounded-lg border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
-        />
-      </div>
-
       <div className="flex items-center gap-2">
         <button
           type="submit"

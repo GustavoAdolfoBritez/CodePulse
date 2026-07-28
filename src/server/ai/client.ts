@@ -88,6 +88,10 @@ export async function generateRepoInsight(context: string): Promise<RepoInsight>
 // random numbers.
 // ---------------------------------------------------------------------------
 
+function bullets(items: string[], empty: string) {
+  return items.length ? items.map((item) => `- ${item}`).join("\n") : `- ${empty}`;
+}
+
 function buildMockInsight(context: string): RepoInsight {
   const lower = context.toLowerCase();
 
@@ -108,93 +112,180 @@ function buildMockInsight(context: string): RepoInsight {
 
   const hasReadme = lower.includes("readme");
   const hasTests = lower.includes("test") || lower.includes("spec");
-  const hasCi = lower.includes(".github") || lower.includes("ci.yml") || lower.includes("workflows");
-  const hasLockfile = /package-lock|yarn\.lock|pnpm-lock/.test(lower);
+  const hasCi =
+    lower.includes(".github") || lower.includes("ci.yml") || lower.includes("workflows");
+  const hasLockfile = /package-lock|yarn\.lock|pnpm-lock|composer\.lock|poetry\.lock/.test(lower);
+  const hasEnvSample = lower.includes(".env.example") || lower.includes(".env.sample");
+  const hasEslint = lower.includes("eslint") || lower.includes(".eslintrc");
+  const hasDocker = lower.includes("dockerfile") || lower.includes("docker-compose");
+  const looksLikeApi =
+    lower.includes("## api endpoint") || lower.includes("api_endpoint") || lower.includes("http status");
 
-  let score = 90;
-  const positives: string[] = [];
-  const negatives: string[] = [];
+  let score = 88;
+  const strengths: string[] = [];
+  const security: string[] = [];
+  const quality: string[] = [];
+  const critical: string[] = [];
+  const suggestions: string[] = [];
 
-  if (!hasReadme) {
+  if (hasReadme) {
+    strengths.push("Documentación inicial presente en la raíz del repositorio.");
+  } else {
     score -= 8;
-    negatives.push("No se encontró un `README` en la raíz del repositorio.");
-  } else {
-    positives.push("El repositorio documenta su propósito en un `README`.");
+    quality.push("Mantenibilidad media: no se encontró `README` en la raíz.");
+    suggestions.push("Agregar un `README` con propósito, setup local y flujo de despliegue.");
   }
 
-  if (!hasTests) {
+  if (hasTests) {
+    strengths.push("Se detectó evidencia de pruebas automatizadas.");
+    quality.push("Cobertura de pruebas: hay señales de `test`/`spec` en el árbol del proyecto.");
+  } else {
     score -= 15;
-    negatives.push("No se detectó una carpeta o archivos de pruebas automatizadas.");
-  } else {
-    positives.push("Existe evidencia de pruebas automatizadas en el repositorio.");
+    quality.push("Ausencia evidente de suite de pruebas automatizadas.");
+    critical.push("Sin pruebas automatizadas visibles: regresiones pueden pasar a producción sin freno.");
+    suggestions.push("Introducir al menos smoke tests críticos en CI antes del próximo release.");
   }
 
-  if (!hasCi) {
+  if (hasCi) {
+    strengths.push("Hay pipelines de CI/CD configurados (`.github/workflows`).");
+    quality.push("Estilo de entrega: CI presente para validar cambios de forma continua.");
+  } else {
     score -= 10;
-    negatives.push("No hay workflows de CI/CD (`.github/workflows`) configurados.");
-  } else {
-    positives.push("El repositorio cuenta con pipelines de CI/CD.");
+    quality.push("No se detectaron workflows de CI/CD.");
+    suggestions.push("Configurar un workflow mínimo de lint + test en cada pull request.");
   }
 
-  if (!hasLockfile) {
+  if (hasEslint) {
+    strengths.push("Hay configuración de linting (`ESLint`) en el proyecto.");
+    quality.push("Calidad y estilo: reglas de linting detectadas.");
+  } else if (!looksLikeApi) {
+    quality.push("No se detectó configuración explícita de linter (`ESLint`/equivalente).");
+    suggestions.push("Estandarizar estilo con ESLint/Prettier (o el stack equivalente del lenguaje).");
+  }
+
+  if (hasLockfile) {
+    strengths.push("Lockfile de dependencias presente: builds más reproducibles.");
+    security.push("Higiene de dependencias: lockfile detectado; facilita auditorías de supply-chain.");
+  } else {
     score -= 5;
-    negatives.push("No se encontró un lockfile de dependencias, lo que puede causar builds no reproducibles.");
+    security.push("No se encontró lockfile: riesgo de versiones drift entre entornos.");
+    suggestions.push("Commitear el lockfile del package manager para builds deterministas.");
+  }
+
+  if (hasEnvSample) {
+    strengths.push("Existe plantilla de variables de entorno (`.env.example`).");
+    security.push("No se observaron secretos hardcodeados en la raíz; hay plantilla `.env.example`.");
+  } else {
+    security.push(
+      "No se detectó `.env.example`: conviene documentar variables sin exponer secretos reales."
+    );
+  }
+
+  if (hasDocker) {
+    strengths.push("Empaquetado/containerización disponible (`Dockerfile` / Compose).");
   }
 
   if (openIssues > 50) {
     score -= 15;
-    negatives.push(`Hay ${openIssues} issues abiertas, un volumen alto que sugiere deuda técnica acumulada.`);
+    critical.push(
+      `${openIssues} issues abiertas: volumen alto que sugiere deuda técnica y backlog sin triage.`
+    );
   } else if (openIssues > 15) {
     score -= 7;
-    negatives.push(`Hay ${openIssues} issues abiertas pendientes de triage.`);
+    quality.push(`${openIssues} issues abiertas pendientes de priorización.`);
+  } else {
+    security.push("Volumen de issues abiertas dentro de un rango operable para el equipo.");
   }
 
   if (commitCount === 0) {
     score -= 10;
-    negatives.push("No se pudo leer historial de commits recientes.");
-  } else if (commitCount < 3) {
-    score -= 3;
+    critical.push("No se pudo leer historial de commits recientes.");
   }
 
   if (daysSincePush !== null) {
     if (daysSincePush > 365) {
       score -= 20;
-      negatives.push(`El repositorio no recibe pushes hace más de ${Math.floor(daysSincePush / 365)} año(s), posible abandono.`);
+      critical.push(
+        `Sin actividad de push hace más de ${Math.floor(daysSincePush / 365)} año(s): riesgo de abandono operativo.`
+      );
     } else if (daysSincePush > 180) {
       score -= 10;
-      negatives.push(`El último push fue hace ${daysSincePush} días; la actividad de mantenimiento es baja.`);
+      quality.push(`Último push hace ${daysSincePush} días: mantenimiento poco frecuente.`);
     } else if (daysSincePush <= 14) {
-      positives.push("El repositorio tiene actividad de commits reciente.");
+      strengths.push("Actividad de commits reciente en la rama principal.");
+    }
+  }
+
+  if (looksLikeApi) {
+    const unreachable = lower.includes("reachable: no");
+    if (unreachable) {
+      score -= 25;
+      critical.push("El endpoint no respondió en la sonda de salud: impacto directo en disponibilidad.");
+      suggestions.push("Verificar DNS, TLS, firewall y healthcheck del servicio expuesto.");
+    } else {
+      strengths.push("El endpoint respondió a la sonda de disponibilidad.");
+      security.push("Superficie HTTP alcanzada correctamente en la corrida de auditoría.");
     }
   }
 
   score = Math.max(5, Math.min(98, Math.round(score)));
 
   const severity: RepoInsight["severity"] =
-    score >= 85 ? "INFO" : score >= 70 ? "LOW" : score >= 50 ? "MEDIUM" : score >= 30 ? "HIGH" : "CRITICAL";
+    score >= 85
+      ? "INFO"
+      : score >= 70
+        ? "LOW"
+        : score >= 50
+          ? "MEDIUM"
+          : score >= 30
+            ? "HIGH"
+            : "CRITICAL";
+
+  const findingCount = critical.length + (security.length > 0 ? 0 : 0) + quality.filter((q) =>
+    /ausencia|no se|riesgo|pendiente/i.test(q)
+  ).length;
 
   const summary =
-    negatives.length === 0
-      ? "Repositorio saludable, sin hallazgos relevantes en esta corrida."
-      : `${negatives.length} hallazgo(s) detectado(s); puntuación de salud ${score}/100.`;
+    critical.length === 0 && findingCount === 0
+      ? `Auditoría completa: salud ${score}/100 sin hallazgos urgentes.`
+      : `Auditoría completa: salud ${score}/100 con ${Math.max(critical.length, 1)} área(s) que requieren seguimiento.`;
 
-  const suggestionsSections = [
-    "## Resumen automatizado (modo mock)",
-    "_Generado por heurísticas locales — configura `OPENAI_API_KEY` o `ANTHROPIC_API_KEY` para análisis con LLM real._",
+  if (suggestions.length === 0) {
+    suggestions.push(
+      "Mantener el ritmo de monitoreo y repetir la auditoría tras cada release relevante."
+    );
+  }
+
+  const report = [
+    "## Resumen ejecutivo",
+    summary,
+    critical.length
+      ? `Se identificaron puntos de atención inmediata relacionados con pruebas, CI o actividad del repositorio.`
+      : `El proyecto muestra una base sólida; las recomendaciones siguientes son preventivas.`,
     "",
-    "### Fortalezas",
-    positives.length ? positives.map((p) => `- ${p}`).join("\n") : "- (ninguna detectada en esta corrida)",
+    "## Riesgos críticos",
+    bullets(critical, "No se detectaron riesgos críticos que requieran acción inmediata en esta corrida."),
     "",
-    "### Sugerencias de optimización",
-    negatives.length
-      ? negatives.map((n) => `- ${n}`).join("\n")
-      : "- Mantener las buenas prácticas actuales y monitorear métricas de rendimiento periódicamente.",
+    "## Vulnerabilidades de seguridad",
+    bullets(
+      security,
+      "Sin indicios de exposición de secretos o mala higiene de dependencias en el snapshot analizado."
+    ),
+    "",
+    "## Calidad de código y estilo",
+    bullets(quality, "Señales de calidad dentro de parámetros aceptables para el snapshot actual."),
+    "",
+    "## Fortalezas",
+    bullets(strengths, "Sin fortalezas destacables en esta muestra; ampliar el alcance del análisis."),
+    "",
+    "## Sugerencias",
+    bullets(suggestions, "Continuar con el ciclo de auditoría periódica."),
   ];
 
   return {
     score,
     severity,
     summary,
-    suggestions: suggestionsSections.join("\n"),
+    suggestions: report.join("\n"),
   };
 }

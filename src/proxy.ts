@@ -3,36 +3,32 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 /**
- * Edge/network gate: only protect dashboard + onboarding behind a session cookie.
+ * Edge gate for authenticated dashboard routes only.
  *
- * IMPORTANT:
- * - Never redirect /login|/register → /onboarding here.
- * - Never redirect based on organizationId here.
- * Those checks belong in Server Components using `auth()`, otherwise a stale
- * JWT cookie with a broken Auth.js config creates ERR_TOO_MANY_REDIRECTS.
+ * Do NOT put /login, /register, or /onboarding in the matcher.
+ * Guarding /onboarding with getToken previously caused ERR_TOO_MANY_REDIRECTS:
+ * Auth.js on HTTPS sets `__Secure-authjs.session-token`, but getToken defaults
+ * secureCookie to false and looked for the wrong cookie name — proxy bounced
+ * users to /login while the login page (Node `auth()`) still saw the session
+ * and sent them back to /onboarding.
  */
 export async function proxy(request: NextRequest) {
+  const isHttps = request.nextUrl.protocol === "https:";
   const token = await getToken({
     req: request,
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    secureCookie: isHttps,
   });
 
-  const { pathname } = request.nextUrl;
-  const isAuthenticated = Boolean(token?.sub);
-  const isDashboardRoute = pathname.startsWith("/dashboard");
-  const isOnboardingRoute = pathname.startsWith("/onboarding");
-
-  if (!isAuthenticated && (isDashboardRoute || isOnboardingRoute)) {
+  if (!token?.sub) {
     const loginUrl = new URL("/login", request.nextUrl);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Authenticated users may visit /login and /register freely.
-  // Those pages use `auth()` and redirect only when the server session is valid.
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/onboarding"],
+  matcher: ["/dashboard/:path*"],
 };

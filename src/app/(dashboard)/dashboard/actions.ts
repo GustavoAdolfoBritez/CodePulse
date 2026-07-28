@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganization } from "@/lib/current-org";
-import { enqueueAnalysisJob } from "@/server/queue/queues";
+import { enqueueOrRunAnalysis } from "@/server/analysis/enqueue-or-run";
 import type { BatchAuditState } from "./batch-audit-state";
 
 export async function runGlobalAuditAction(prevState: BatchAuditState): Promise<BatchAuditState> {
@@ -21,16 +21,25 @@ export async function runGlobalAuditAction(prevState: BatchAuditState): Promise<
     };
   }
 
-  await Promise.all(
-    projects.map((project) =>
-      enqueueAnalysisJob({
-        projectId: project.id,
-        sourceType: project.sourceType,
-        target: project.githubRepoUrl ?? project.apiUrl ?? "",
-        triggeredBy: "global-audit",
-      })
-    )
-  );
+  try {
+    await Promise.all(
+      projects.map((project) =>
+        enqueueOrRunAnalysis({
+          projectId: project.id,
+          sourceType: project.sourceType,
+          target: project.githubRepoUrl ?? project.apiUrl ?? "",
+          triggeredBy: "global-audit",
+        })
+      )
+    );
+  } catch (error) {
+    console.error("[runGlobalAuditAction] analysis failed", error);
+    return {
+      success: false,
+      error: "No se pudo completar la auditoría global. Reintenta en unos segundos.",
+      message: null,
+    };
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/projects");

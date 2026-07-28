@@ -9,12 +9,7 @@ import {
   generateUniqueOrganizationSlug,
   generateWebhookApiKey,
 } from "@/lib/organizations";
-
-export type OnboardingState = {
-  error: string | null;
-};
-
-export const initialOnboardingState: OnboardingState = { error: null };
+import type { OnboardingState } from "./onboarding-state";
 
 const onboardingSchema = z.object({
   organizationName: z.string().min(2, "Ingresa un nombre de al menos 2 caracteres."),
@@ -86,4 +81,9 @@ export async function completeOnboardingAction(
   }
 
   redirect("/dashboard");
+}
+
+export async function clearSessionAction() {
+  const { signOut } = await import("@/auth");
+  await signOut({ redirectTo: "/login" });
 }

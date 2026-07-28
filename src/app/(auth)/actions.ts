@@ -12,7 +12,6 @@ import { getSafeRedirectPath } from "@/lib/safe-redirect";
 import { acceptOrganizationInvitation } from "@/lib/invitations";
 import { passwordSchema } from "@/lib/password-policy";
 import { consumeRateLimit } from "@/lib/rate-limit";
-import type { AuthFormState } from "./auth-state";
 
 const loginSchema = z.object({
   email: z.string().email("Ingresa un email válido."),
@@ -25,21 +24,23 @@ const registerSchema = z.object({
   password: passwordSchema,
 });
 
-function rateLimitOrError(key: string): AuthFormState | null {
+function fail(path: "/login" | "/register", message: string): never {
+  redirect(`${path}?error=${encodeURIComponent(message)}`);
+}
+
+function rateLimitOrFail(key: string, path: "/login" | "/register") {
   const result = consumeRateLimit({ key, limit: 10, windowMs: 15 * 60 * 1000 });
   if (!result.ok) {
-    return {
-      error: `Demasiados intentos. Espera ${result.retryAfterSec}s e inténtalo de nuevo.`,
-    };
+    fail(path, `Demasiados intentos. Espera ${result.retryAfterSec}s e inténtalo de nuevo.`);
   }
-  return null;
 }
 
 async function signInWithCredentials(args: {
   email: string;
   password: string;
   redirectTo: string;
-}): Promise<AuthFormState> {
+  errorPath: "/login" | "/register";
+}) {
   try {
     const result = await signIn("credentials", {
       email: args.email,
@@ -48,42 +49,36 @@ async function signInWithCredentials(args: {
     });
 
     if (!result || result.error) {
-      return { error: "Credenciales inválidas." };
+      fail(args.errorPath, "Credenciales inválidas.");
     }
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
     }
     if (error instanceof AuthError) {
-      return { error: "Credenciales inválidas." };
+      fail(args.errorPath, "Credenciales inválidas.");
     }
     console.error("[auth] credentials sign-in failed", error);
-    return {
-      error:
-        "No se pudo iniciar sesión. Revisa AUTH_SECRET / AUTH_URL en Vercel o inténtalo de nuevo.",
-    };
+    fail(
+      args.errorPath,
+      "No se pudo iniciar sesión. Revisa AUTH_SECRET / AUTH_URL en Vercel."
+    );
   }
 
   redirect(args.redirectTo);
 }
 
-export async function loginAction(
-  _prevState: AuthFormState,
-  formData: FormData
-): Promise<AuthFormState> {
+export async function loginAction(formData: FormData) {
   const parsed = loginSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    fail("/login", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
 
-  const limited = rateLimitOrError(`login:${parsed.data.email.toLowerCase()}`);
-  if (limited) {
-    return limited;
-  }
+  rateLimitOrFail(`login:${parsed.data.email.toLowerCase()}`, "/login");
 
   const user = await prisma.user.findUnique({
     where: { email: parsed.data.email },
@@ -98,10 +93,11 @@ export async function loginAction(
   const callbackUrl = formData.get("callbackUrl")?.toString();
   const redirectTo = resolveAuthRedirect(callbackUrl, organizationId);
 
-  return signInWithCredentials({
+  await signInWithCredentials({
     email: parsed.data.email,
     password: parsed.data.password,
     redirectTo,
+    errorPath: "/login",
   });
 }
 
@@ -111,10 +107,7 @@ export async function loginWithGitHubAction(formData: FormData) {
   await signIn("github", { redirectTo });
 }
 
-export async function registerAction(
-  _prevState: AuthFormState,
-  formData: FormData
-): Promise<AuthFormState> {
+export async function registerAction(formData: FormData) {
   const parsed = registerSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -122,19 +115,16 @@ export async function registerAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    fail("/register", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
 
-  const limited = rateLimitOrError(`register:${parsed.data.email.toLowerCase()}`);
-  if (limited) {
-    return limited;
-  }
+  rateLimitOrFail(`register:${parsed.data.email.toLowerCase()}`, "/register");
 
   const existingUser = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
   if (existingUser) {
-    return { error: "Ya existe una cuenta con ese email." };
+    fail("/register", "Ya existe una cuenta con ese email.");
   }
 
   const passwordHash = await hash(parsed.data.password, 12);
@@ -147,26 +137,15 @@ export async function registerAction(
     },
   });
 
-  const result = await signInWithCredentials({
+  await signInWithCredentials({
     email: parsed.data.email,
     password: parsed.data.password,
     redirectTo: "/onboarding",
+    errorPath: "/login",
   });
-
-  if (result.error) {
-    return {
-      error:
-        "La cuenta se creó, pero el login automático falló. Ve a Iniciar sesión con el mismo email y contraseña.",
-    };
-  }
-
-  return result;
 }
 
-export async function registerWithInviteAction(
-  _prevState: AuthFormState,
-  formData: FormData
-): Promise<AuthFormState> {
+export async function registerWithInviteAction(formData: FormData) {
   const parsed = registerSchema
     .extend({
       token: z.string().min(1),
@@ -179,19 +158,19 @@ export async function registerWithInviteAction(
     });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos." };
+    fail("/register", parsed.error.issues[0]?.message ?? "Datos inválidos.");
   }
 
-  const limited = rateLimitOrError(`register-invite:${parsed.data.email.toLowerCase()}`);
-  if (limited) {
-    return limited;
-  }
+  rateLimitOrFail(`register-invite:${parsed.data.email.toLowerCase()}`, "/register");
 
   const existingUser = await prisma.user.findUnique({
     where: { email: parsed.data.email },
   });
   if (existingUser) {
-    return { error: "Ya existe una cuenta con ese email. Inicia sesión para aceptar la invitación." };
+    fail(
+      "/login",
+      "Ya existe una cuenta con ese email. Inicia sesión para aceptar la invitación."
+    );
   }
 
   const passwordHash = await hash(parsed.data.password, 12);
@@ -212,23 +191,16 @@ export async function registerWithInviteAction(
     });
   } catch (error) {
     await prisma.user.delete({ where: { id: user.id } });
-    return {
-      error: error instanceof Error ? error.message : "No se pudo aceptar la invitación.",
-    };
+    fail(
+      "/register",
+      error instanceof Error ? error.message : "No se pudo aceptar la invitación."
+    );
   }
 
-  const result = await signInWithCredentials({
+  await signInWithCredentials({
     email: parsed.data.email,
     password: parsed.data.password,
     redirectTo: "/dashboard",
+    errorPath: "/login",
   });
-
-  if (result.error) {
-    return {
-      error:
-        "La cuenta se creó, pero el login automático falló. Ve a Iniciar sesión con el mismo email y contraseña.",
-    };
-  }
-
-  return result;
 }

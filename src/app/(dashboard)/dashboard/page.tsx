@@ -135,7 +135,7 @@ export default async function DashboardPage() {
         actions={<BatchAuditButton />}
       />
       <main className="flex-1 space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Salud promedio del código"
             metric={`${averageHealth}/100`}
@@ -199,8 +199,7 @@ export default async function DashboardPage() {
             <p className="text-sm font-semibold text-zinc-900 dark:text-white">Estado de la auditoría global</p>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
               Usa <span className="font-medium text-zinc-700 dark:text-zinc-200">Ejecutar Auditoría Global</span> para
-              encolar todos los proyectos de la organización en paralelo sobre BullMQ y refrescar estas métricas en
-              tiempo real.
+              analizar todos los proyectos de la organización y refrescar estas métricas en tiempo real.
             </p>
           </div>
         </div>

@@ -1,15 +1,23 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw } from "lucide-react";
 import { triggerAnalysisAction } from "./actions";
 import { initialActionState } from "./action-types";
 
 export function AnalyzeButton({ projectId }: { projectId: string }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(triggerAnalysisAction, initialActionState);
 
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
+
   return (
-    <form action={formAction}>
+    <form action={formAction} className="flex flex-col items-end gap-1">
       <input type="hidden" name="projectId" value={projectId} />
       <button
         type="submit"
@@ -22,9 +30,12 @@ export function AnalyzeButton({ projectId }: { projectId: string }) {
         ) : (
           <RefreshCw className="h-3.5 w-3.5" />
         )}
-        Analizar ahora
+        {pending ? "Analizando…" : "Analizar ahora"}
       </button>
-      {state.error ? <p className="mt-1 text-xs text-rose-500">{state.error}</p> : null}
+      {state.error ? <p className="text-xs text-rose-500">{state.error}</p> : null}
+      {state.success && !pending ? (
+        <p className="text-xs text-emerald-600 dark:text-emerald-400">Análisis listo</p>
+      ) : null}
     </form>
   );
 }

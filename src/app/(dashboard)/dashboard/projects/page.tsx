@@ -13,6 +13,7 @@ import { ConnectRepoDialog } from "./ConnectRepoDialog";
 import { AnalyzeButton } from "./AnalyzeButton";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 interface ProjectsPageProps {
   searchParams: Promise<SearchParamsInput>;

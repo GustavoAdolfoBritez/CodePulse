@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentOrganization } from "@/lib/current-org";
 import { normalizeRepoInput, parseRepoUrl } from "@/lib/github";
 import { assertSafeGithubRepoUrl } from "@/lib/url-safety";
-import { enqueueAnalysisJob } from "@/server/queue/queues";
+import { enqueueOrRunAnalysis } from "@/server/analysis/enqueue-or-run";
 import type { ActionState } from "./action-types";
 
 const connectRepoSchema = z.object({
@@ -59,11 +59,15 @@ export async function createProjectAction(
     },
   });
 
-  await enqueueAnalysisJob({
-    projectId: project.id,
-    sourceType: "GITHUB_REPO",
-    target: githubRepoUrl,
-  });
+  try {
+    await enqueueOrRunAnalysis({
+      projectId: project.id,
+      sourceType: "GITHUB_REPO",
+      target: githubRepoUrl,
+    });
+  } catch (error) {
+    console.error("[createProjectAction] analysis failed", error);
+  }
 
   revalidatePath("/dashboard/projects");
   revalidatePath("/dashboard/insights");
@@ -98,11 +102,19 @@ export async function triggerAnalysisAction(
     return { success: false, error: "El proyecto no tiene una fuente configurada." };
   }
 
-  await enqueueAnalysisJob({
-    projectId: project.id,
-    sourceType: project.sourceType,
-    target,
-  });
+  try {
+    await enqueueOrRunAnalysis({
+      projectId: project.id,
+      sourceType: project.sourceType,
+      target,
+    });
+  } catch (error) {
+    console.error("[triggerAnalysisAction] analysis failed", error);
+    return {
+      success: false,
+      error: "No se pudo completar el análisis. Reintenta en unos segundos.",
+    };
+  }
 
   revalidatePath("/dashboard/projects");
   revalidatePath(`/dashboard/projects/${project.id}`);

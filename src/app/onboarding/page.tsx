@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { clearSessionAction } from "./actions";
 import { OnboardingWizard } from "./OnboardingWizard";
 
 export const dynamic = "force-dynamic";
@@ -9,29 +10,68 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingPage() {
   const session = await auth();
 
-  // Do NOT hard-redirect to /login automatically when session is missing.
-  // A stale JWT cookie can make the proxy think the user is authenticated while
-  // `auth()` returns null — auto-redirects recreate ERR_TOO_MANY_REDIRECTS.
+  // Never auto-redirect to /login here. A cookie mismatch between Edge getToken
+  // and Node auth() used to create ERR_TOO_MANY_REDIRECTS with the proxy.
   if (!session?.user?.id) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
-        <div className="w-full max-w-md rounded-3xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
+      <main
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 16px",
+          backgroundColor: "#09090b",
+          color: "#f4f4f5",
+        }}
+      >
+        <div
+          style={{
+            width: "100%",
+            maxWidth: 440,
+            borderRadius: 24,
+            border: "1px solid #27272a",
+            backgroundColor: "#18181b",
+            padding: 32,
+            textAlign: "center",
+          }}
+        >
+          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, color: "#fafafa" }}>
             Sesión no válida
           </h1>
-          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-            No pudimos leer tu sesión. Cierra las cookies del sitio o vuelve a iniciar sesión.
+          <p style={{ margin: "12px 0 0", fontSize: 14, color: "#a1a1aa", lineHeight: 1.5 }}>
+            No pudimos leer tu sesión. Borra la cookie del sitio o vuelve a iniciar sesión.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
-            <Link
-              href="/login"
-              className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white hover:bg-indigo-500"
-            >
-              Ir a iniciar sesión
-            </Link>
+          <div style={{ marginTop: 24, display: "grid", gap: 12 }}>
+            <form action={clearSessionAction}>
+              <button
+                type="submit"
+                style={{
+                  width: "100%",
+                  borderRadius: 12,
+                  border: "none",
+                  backgroundColor: "#4f46e5",
+                  color: "#fff",
+                  padding: "12px 16px",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cerrar sesión y entrar de nuevo
+              </button>
+            </form>
             <Link
               href="/register"
-              className="rounded-xl border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              style={{
+                display: "block",
+                borderRadius: 12,
+                border: "1px solid #3f3f46",
+                padding: "12px 16px",
+                fontSize: 14,
+                color: "#e4e4e7",
+                textDecoration: "none",
+              }}
             >
               Crear cuenta con email
             </Link>
@@ -50,7 +90,16 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10 dark:bg-zinc-950">
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 16px",
+        backgroundColor: "#09090b",
+      }}
+    >
       <OnboardingWizard />
     </main>
   );

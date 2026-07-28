@@ -2,10 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { Building2, CheckCircle2, Loader2, Rocket, Sparkles } from "lucide-react";
-import {
-  completeOnboardingAction,
-  initialOnboardingState,
-} from "./actions";
+import { completeOnboardingAction } from "./actions";
+import { initialOnboardingState } from "./onboarding-state";
 
 const plans = [
   {

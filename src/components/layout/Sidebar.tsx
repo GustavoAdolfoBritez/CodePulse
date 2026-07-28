@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { siteConfig, type NavItem } from "@/config/site";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -52,17 +52,7 @@ export function Sidebar({ organizationName = "Organization", userName }: Sidebar
         </span>
       </div>
 
-      <div className="px-4 pb-4">
-        <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900/60 dark:text-zinc-500">
-          <Search className="h-3.5 w-3.5 shrink-0" />
-          <span className="flex-1">Search anything</span>
-          <kbd className="rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-500">
-            ⌘K
-          </kbd>
-        </div>
-      </div>
-
-      <nav className="flex-1 space-y-6 overflow-y-auto px-4 pb-4">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-4">
         {siteConfig.navSections.map((section) => (
           <div key={section.label} className="space-y-1.5">
             <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">
@@ -73,7 +63,7 @@ export function Sidebar({ organizationName = "Organization", userName }: Sidebar
                 <NavLink
                   key={item.href}
                   item={item}
-                  active={pathname === item.href}
+                  active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
                 />
               ))}
             </div>
@@ -89,7 +79,7 @@ export function Sidebar({ organizationName = "Organization", userName }: Sidebar
               <NavLink
                 key={item.href}
                 item={item}
-                active={pathname === item.href}
+                active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
               />
             ))}
           </div>

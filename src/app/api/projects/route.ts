@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganizationContext } from "@/lib/current-org";
-import { enqueueAnalysisJob } from "@/server/queue/queues";
+import { enqueueOrRunAnalysis } from "@/server/analysis/enqueue-or-run";
 import { assertSafeGithubRepoUrl, assertSafeOutboundUrl } from "@/lib/url-safety";
 
 const createProjectSchema = z.object({
@@ -62,11 +62,15 @@ export async function POST(request: Request) {
 
   const target = project.githubRepoUrl ?? project.apiUrl ?? "";
   if (target) {
-    await enqueueAnalysisJob({
-      projectId: project.id,
-      sourceType: project.sourceType,
-      target,
-    });
+    try {
+      await enqueueOrRunAnalysis({
+        projectId: project.id,
+        sourceType: project.sourceType,
+        target,
+      });
+    } catch (error) {
+      console.error("[api/projects] analysis failed", error);
+    }
   }
 
   return NextResponse.json({ project }, { status: 201 });

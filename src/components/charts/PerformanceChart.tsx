@@ -1,7 +1,7 @@
 "use client";
 
 import { AreaChart, Card } from "@tremor/react";
-import { Activity, ArrowDown, ArrowUp, ChevronDown } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp } from "lucide-react";
 import type { PerformanceDataPoint } from "@/types";
 import type { DeltaType } from "@/components/dashboard/StatCard";
 
@@ -18,11 +18,6 @@ interface PerformanceChartProps {
   valueFormatter?: (value: number) => string;
 }
 
-/**
- * "Hello World" chart used to validate the Tremor + Tailwind setup.
- * Once real analysis jobs run, this will be fed by AnalysisResult rows
- * fetched from Postgres via Prisma.
- */
 export function PerformanceChart({
   data,
   title = "Rendimiento de la API",
@@ -32,7 +27,7 @@ export function PerformanceChart({
   colors = ["indigo", "rose"],
   delta = "+3% vs. semana anterior",
   deltaType = "increase",
-  rangeLabel = "Últimos 7 días",
+  rangeLabel = "Últimas 8 semanas",
   valueFormatter = (value: number) => value.toLocaleString("en-US"),
 }: PerformanceChartProps) {
   const latestValue = data[data.length - 1]?.[metricLabel];
@@ -52,20 +47,16 @@ export function PerformanceChart({
 
   return (
     <Card className="p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Activity className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
           <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
             {title}
           </span>
         </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
+        <span className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
           {rangeLabel}
-          <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />
-        </button>
+        </span>
       </div>
 
       <div className="mt-5 flex items-baseline gap-3">

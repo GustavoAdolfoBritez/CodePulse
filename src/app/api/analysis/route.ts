@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganizationContext } from "@/lib/current-org";
-import { enqueueAnalysisJob } from "@/server/queue/queues";
+import { enqueueOrRunAnalysis } from "@/server/analysis/enqueue-or-run";
 
 const triggerAnalysisSchema = z.object({
   projectId: z.string().min(1),
@@ -35,11 +35,21 @@ export async function POST(request: Request) {
 
   const target = project.githubRepoUrl ?? project.apiUrl ?? "";
 
-  const job = await enqueueAnalysisJob({
-    projectId: project.id,
-    sourceType: project.sourceType,
-    target,
-  });
-
-  return NextResponse.json({ jobId: job.id, status: "queued" }, { status: 202 });
+  try {
+    const result = await enqueueOrRunAnalysis({
+      projectId: project.id,
+      sourceType: project.sourceType,
+      target,
+    });
+    return NextResponse.json(
+      { jobId: result.jobId, status: result.mode === "queued" ? "queued" : "completed" },
+      { status: 202 }
+    );
+  } catch (error) {
+    console.error("[api/analysis] analysis failed", error);
+    return NextResponse.json(
+      { error: "No se pudo completar el análisis." },
+      { status: 503 }
+    );
+  }
 }
