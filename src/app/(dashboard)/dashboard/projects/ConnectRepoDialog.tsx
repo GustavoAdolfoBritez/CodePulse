@@ -124,21 +124,21 @@ export function ConnectRepoDialog() {
           setRepoSearch("");
           setOpen(true);
         }}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-indigo-500 sm:w-auto sm:py-2"
       >
         <Plus className="h-4 w-4" />
         Conectar repositorio
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 px-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 p-0 sm:items-center sm:p-4">
+          <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white p-5 shadow-xl sm:rounded-2xl sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
                   <FolderGit2 className="h-4.5 w-4.5 text-zinc-600 dark:text-zinc-300" />
                 </span>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+                <h2 className="text-base font-semibold leading-snug text-zinc-900 dark:text-white">
                   Conectar nuevo repositorio de GitHub
                 </h2>
               </div>

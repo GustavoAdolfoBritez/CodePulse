@@ -96,7 +96,7 @@ export default async function OnboardingPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "40px 16px",
+        padding: "24px 16px",
         backgroundColor: "#09090b",
       }}
     >

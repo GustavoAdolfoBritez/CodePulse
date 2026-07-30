@@ -42,6 +42,48 @@ async function maybeCreateRiskNotification(args: {
   });
 }
 
+async function resolveGithubToken(data: AnalysisJobData): Promise<string | null> {
+  if (data.githubAccessToken) {
+    return data.githubAccessToken;
+  }
+
+  if (process.env.GITHUB_TOKEN?.trim()) {
+    return process.env.GITHUB_TOKEN.trim();
+  }
+
+  const session = await auth();
+  if (session?.user?.id) {
+    const sessionToken = await getUserGithubAccessToken(session.user.id);
+    if (sessionToken) {
+      return sessionToken;
+    }
+  }
+
+  const project = await prisma.project.findUnique({
+    where: { id: data.projectId },
+    select: {
+      organization: {
+        select: {
+          memberships: {
+            select: { userId: true },
+            take: 25,
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      },
+    },
+  });
+
+  for (const membership of project?.organization.memberships ?? []) {
+    const token = await getUserGithubAccessToken(membership.userId);
+    if (token) {
+      return token;
+    }
+  }
+
+  return null;
+}
+
 async function buildGithubContext(
   target: string,
   token?: string | null
@@ -100,20 +142,14 @@ async function buildApiContext(target: string) {
 export async function runAnalysisJob(data: AnalysisJobData) {
   const { projectId, sourceType, target } = data;
 
-  let githubToken: string | null = null;
-  if (sourceType === "GITHUB_REPO") {
-    const session = await auth();
-    if (session?.user?.id) {
-      githubToken = await getUserGithubAccessToken(session.user.id);
-    }
-  }
+  const githubToken = sourceType === "GITHUB_REPO" ? await resolveGithubToken(data) : null;
 
   const analysisResult = await prisma.analysisResult.create({
     data: {
       projectId,
       status: "RUNNING",
       summary: `Analyzing ${sourceType === "GITHUB_REPO" ? "repository" : "API"} ${target}`,
-      sourceRef: target,
+      sourceRef: data.sourceRef ?? target,
       startedAt: new Date(),
     },
   });
@@ -127,7 +163,18 @@ export async function runAnalysisJob(data: AnalysisJobData) {
     if (sourceType === "GITHUB_REPO") {
       const { context: repoContext, snapshot } = await buildGithubContext(target, githubToken);
       context = repoContext;
-      rawMetrics = { ...snapshot };
+      rawMetrics = {
+        fullName: snapshot.fullName,
+        language: snapshot.language,
+        stars: snapshot.stars,
+        forks: snapshot.forks,
+        openIssues: snapshot.openIssues,
+        pushedAt: snapshot.pushedAt,
+        rootEntries: snapshot.rootEntries,
+        commits: snapshot.commits,
+        health: snapshot.health,
+        triggeredBy: data.triggeredBy ?? null,
+      };
       errorCount = 0;
     } else {
       const apiResult = await buildApiContext(target);
@@ -137,12 +184,13 @@ export async function runAnalysisJob(data: AnalysisJobData) {
         httpStatus: apiResult.httpStatus,
         latencyMs: apiResult.latencyMs,
         errorMessage: apiResult.errorMessage,
+        triggeredBy: data.triggeredBy ?? null,
       };
       errorCount = apiResult.reachable && apiResult.httpStatus && apiResult.httpStatus < 400 ? 0 : 1;
       latencyMsP95 = apiResult.latencyMs;
     }
 
-    const insight = await generateRepoInsight(context);
+    const { insight, mode } = await generateRepoInsight(context);
     const normalizedScore = Math.round(insight.score);
 
     await prisma.analysisResult.update({
@@ -153,6 +201,7 @@ export async function runAnalysisJob(data: AnalysisJobData) {
         aiScore: normalizedScore,
         summary: insight.summary,
         aiInsight: insight.suggestions,
+        aiMode: mode,
         rawMetrics: rawMetrics as Prisma.InputJsonValue,
         errorCount,
         latencyMsP95,
@@ -167,7 +216,7 @@ export async function runAnalysisJob(data: AnalysisJobData) {
       summary: insight.summary,
     });
 
-    return { analysisResultId: analysisResult.id, mode: "completed" as const };
+    return { analysisResultId: analysisResult.id, mode: "completed" as const, aiMode: mode };
   } catch (error) {
     await prisma.analysisResult.update({
       where: { id: analysisResult.id },

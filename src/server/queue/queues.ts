@@ -12,6 +12,10 @@ export interface AnalysisJobData {
   /** Repo URL, API URL, or a pointer to a batch of logs to fetch/analyze. */
   target: string;
   triggeredBy?: string;
+  /** Optional commit SHA / PR head for provenance. */
+  sourceRef?: string;
+  /** Prefer this token for GitHub API (webhooks have no user session). */
+  githubAccessToken?: string;
 }
 
 const ENQUEUE_TIMEOUT_MS = 8_000;

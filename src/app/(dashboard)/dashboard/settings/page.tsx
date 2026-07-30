@@ -1,6 +1,8 @@
 import { Header } from "@/components/layout/Header";
+import { CopyField } from "@/components/settings/CopyField";
 import { prisma } from "@/lib/prisma";
 import { getCurrentOrganizationContext } from "@/lib/current-org";
+import { generateWebhookApiKey } from "@/lib/organizations";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -24,9 +26,15 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
   const context = await getCurrentOrganizationContext();
   const canManageOrganization = context!.activeRole === "OWNER" || context!.activeRole === "ADMIN";
   const isOwner = context!.activeRole === "OWNER";
-  const maskedWebhookKey = context!.organization.webhookApiKey
-    ? `${context!.organization.webhookApiKey.slice(0, 8)}${"•".repeat(18)}`
-    : "No configurada";
+
+  let webhookSecret = context!.organization.webhookApiKey;
+  if (!webhookSecret && canManageOrganization) {
+    webhookSecret = generateWebhookApiKey();
+    await prisma.organization.update({
+      where: { id: context!.organization.id },
+      data: { webhookApiKey: webhookSecret },
+    });
+  }
 
   const [members, pendingInvitations] = await Promise.all([
     prisma.organizationMembership.findMany({
@@ -48,7 +56,11 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
     }),
   ]);
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const payloadUrl = `${(process.env.NEXT_PUBLIC_APP_URL ?? "https://code-pulse-delta.vercel.app").replace(/\/$/, "")}/api/webhooks/github`;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://code-pulse-delta.vercel.app").replace(
+    /\/$/,
+    ""
+  );
 
   return (
     <>
@@ -58,9 +70,9 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
         subtitle="Gestiona tu perfil, la organización activa y los miembros del espacio."
       />
 
-      <div className="flex-1 space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex-1 space-y-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 xl:grid-cols-2">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Perfil</h2>
             <form action={updateProfileAction} className="mt-4 space-y-4">
               <div>
@@ -110,7 +122,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </form>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Organización activa</h2>
             <form action={updateOrganizationAction} className="mt-4 space-y-4">
               <div>
@@ -124,44 +136,83 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
                   className="block w-full rounded-xl border-zinc-200 bg-white text-sm text-zinc-900 focus:border-indigo-500 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  Webhook API Key
-                </label>
-                <input
-                  value={canManageOrganization ? maskedWebhookKey : "••••••••••••••••"}
-                  disabled
-                  readOnly
-                  className="block w-full rounded-xl border-zinc-200 bg-zinc-50 font-mono text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400"
-                />
-                <p className="mt-1.5 text-xs text-zinc-400">
-                  La clave solo se puede rotar. Nunca se edita a mano ni se muestra completa.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={!canManageOrganization}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-                >
-                  Guardar organización
-                </button>
-              </div>
-            </form>
-            <form action={rotateWebhookKeyAction} className="mt-3">
               <button
                 type="submit"
                 disabled={!canManageOrganization}
-                className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
               >
-                Rotar API key
+                Guardar organización
               </button>
             </form>
           </div>
         </div>
 
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
+            Webhook de GitHub (análisis automático)
+          </h2>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
+            Conectá tu repositorio en CodePulse y después creá un webhook en GitHub para que cada
+            push o pull request dispare una auditoría sola.
+          </p>
+
+          <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm text-zinc-600 dark:text-zinc-300">
+            <li>
+              En GitHub abrí el repo → <strong>Settings</strong> → <strong>Webhooks</strong> →{" "}
+              <strong>Add webhook</strong>.
+            </li>
+            <li>
+              Pegá la <strong>Payload URL</strong> de abajo.
+            </li>
+            <li>
+              Content type: <strong>application/json</strong>.
+            </li>
+            <li>
+              En <strong>Secret</strong> pegá el valor de abajo (empieza con{" "}
+              <code className="text-xs">cp_wh_</code>).{" "}
+              <span className="text-amber-700 dark:text-amber-300">
+                No escribas nombres de variables como GITHUB_WEBHOOK_SECRET.
+              </span>
+            </li>
+            <li>
+              Elegí <strong>Let me select individual events</strong> y marcá{" "}
+              <strong>Pushes</strong> + <strong>Pull requests</strong> (o al menos Pushes).
+            </li>
+            <li>
+              Dejá <strong>Active</strong> marcado y tocá <strong>Add webhook</strong>.
+            </li>
+          </ol>
+
+          {canManageOrganization && webhookSecret ? (
+            <div className="mt-5 space-y-4">
+              <CopyField
+                label="1. Payload URL"
+                value={payloadUrl}
+                hint="Copiá esto en el campo Payload URL de GitHub."
+              />
+              <CopyField
+                label="2. Secret"
+                value={webhookSecret}
+                hint="Este es el secreto de tu organización. Pegalo en el campo Secret de GitHub."
+              />
+              <form action={rotateWebhookKeyAction}>
+                <button
+                  type="submit"
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Rotar secret (después actualizalo también en GitHub)
+                </button>
+              </form>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              Solo OWNER o ADMIN pueden ver y copiar el secret del webhook.
+            </p>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Cambiar de organización</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
               Selecciona el espacio activo para cambiar el scope de proyectos, métricas e insights.
@@ -192,7 +243,7 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
             </form>
           </div>
 
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">Invitar por email</h2>
             <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
               Envía una invitación con enlace único. El invitado podrá registrarse o unirse con su cuenta.

@@ -5,6 +5,7 @@ import { AnalyticsFilters } from "@/components/filters/AnalyticsFilters";
 import { StatusBadge } from "@/components/insights/StatusBadge";
 import { SeverityBadge } from "@/components/insights/SeverityBadge";
 import { ScoreBadge } from "@/components/insights/ScoreBadge";
+import { AiModeBadge } from "@/components/insights/AiModeBadge";
 import { MarkdownContent } from "@/components/insights/MarkdownContent";
 import { matchesAnalyticsFilters, parseAnalyticsFilters, type SearchParamsInput } from "@/lib/analytics-filters";
 import { prisma } from "@/lib/prisma";
@@ -53,10 +54,10 @@ export default async function InsightsPage({ searchParams }: InsightsPageProps) 
         subtitle="Últimos hallazgos generados automáticamente por el motor de IA para cada proyecto conectado."
       />
 
-      <div className="flex-1 space-y-4 p-6">
+      <div className="flex-1 space-y-4 p-4 sm:p-6">
         <AnalyticsFilters filters={filters} />
         {feed.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 sm:p-10">
             <Sparkles className="mx-auto mb-3 h-6 w-6 text-zinc-300 dark:text-zinc-600" />
             Todavía no hay insights generados. Conecta un proyecto y ejecuta un análisis desde{" "}
             <Link href="/dashboard/projects" className="font-medium text-indigo-600 hover:underline">
@@ -70,17 +71,17 @@ export default async function InsightsPage({ searchParams }: InsightsPageProps) 
             return (
               <div
                 key={result.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900"
+                className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 sm:p-6"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800">
                       <SourceIcon className="h-4.5 w-4.5 text-zinc-500 dark:text-zinc-400" />
                     </span>
-                    <div>
+                    <div className="min-w-0">
                       <Link
                         href={`/dashboard/projects/${project.id}`}
-                        className="text-sm font-semibold text-zinc-900 hover:underline dark:text-white"
+                        className="block truncate text-sm font-semibold text-zinc-900 hover:underline dark:text-white"
                       >
                         {project.name}
                       </Link>
@@ -88,10 +89,11 @@ export default async function InsightsPage({ searchParams }: InsightsPageProps) 
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <StatusBadge status={result.status} />
                     <SeverityBadge severity={result.severity} />
                     <ScoreBadge score={result.aiScore} />
+                    <AiModeBadge mode={result.aiMode} />
                   </div>
                 </div>
 

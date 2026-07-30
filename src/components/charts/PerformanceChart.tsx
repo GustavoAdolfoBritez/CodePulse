@@ -46,11 +46,11 @@ export function PerformanceChart({
         : ArrowUp;
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
-          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+    <Card className="overflow-hidden p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Activity className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" />
+          <span className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-200">
             {title}
           </span>
         </div>
@@ -59,8 +59,8 @@ export function PerformanceChart({
         </span>
       </div>
 
-      <div className="mt-5 flex items-baseline gap-3">
-        <p className="text-3xl font-semibold tabular-nums text-zinc-900 dark:text-white">
+      <div className="mt-5 flex flex-wrap items-baseline gap-3">
+        <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl dark:text-white">
           {valueFormatter(latest)} {metricSuffix}
         </p>
         <span className={`flex items-center gap-1 text-xs font-medium ${deltaTone}`}>
@@ -70,7 +70,7 @@ export function PerformanceChart({
       </div>
 
       <AreaChart
-        className="mt-6 h-72"
+        className="mt-6 h-52 sm:h-72"
         data={data}
         index="date"
         categories={categories}

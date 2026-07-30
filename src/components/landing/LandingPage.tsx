@@ -44,7 +44,7 @@ export function LandingPage() {
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} enableColorScheme={false}>
       <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <header className="sticky top-0 z-40 border-b border-zinc-200/80 bg-zinc-50/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
               <Zap className="h-4 w-4" fill="currentColor" />
@@ -80,16 +80,16 @@ export function LandingPage() {
       <main>
         <section className="relative overflow-hidden">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.18),transparent_55%)] dark:bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.25),transparent_55%)]" />
-          <div className="relative mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-28">
+          <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-12 lg:py-28">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/50 dark:text-indigo-300">
                 <Sparkles className="h-3.5 w-3.5" />
                 Auditoría automatizada para equipos de producto
               </p>
-              <h1 className="mt-6 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl dark:text-white">
+              <h1 className="mt-6 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl md:text-5xl dark:text-white">
                 Salud de código e insights con IA, en un solo pulso.
               </h1>
-              <p className="mt-5 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
+              <p className="mt-5 max-w-xl text-base text-zinc-600 sm:text-lg dark:text-zinc-400">
                 {siteConfig.description} Conecta repos de GitHub, monitorea APIs y recibe alertas
                 accionables en un dashboard multi-tenant diseñado para equipos B2B.
               </p>
@@ -239,7 +239,7 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-zinc-200 py-8 dark:border-zinc-800">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 text-sm text-zinc-500 md:flex-row dark:text-zinc-400">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 text-sm text-zinc-500 sm:px-6 md:flex-row dark:text-zinc-400">
           <p>© {new Date().getFullYear()} {siteConfig.name}. Built for modern B2B engineering teams.</p>
           <div className="flex gap-4">
             <Link href="/login" className="hover:text-zinc-900 dark:hover:text-white">

@@ -7,9 +7,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} enableColorScheme={false}>
-      <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="flex min-h-screen flex-col bg-zinc-50 md:flex-row dark:bg-zinc-950">
         <Sidebar organizationName={context?.organization.name} userName={context?.user.name} />
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </div>
     </ThemeProvider>
   );

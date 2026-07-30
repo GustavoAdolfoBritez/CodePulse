@@ -1,20 +1,30 @@
 import { generateObject, generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { buildInsightPrompt } from "./prompts";
 import { repoInsightSchema, type RepoInsight } from "./schema";
 
-type AiProvider = "openai" | "anthropic";
+type AiProvider = "openai" | "anthropic" | "google";
 
 function getProvider(): AiProvider {
-  return (process.env.AI_PROVIDER as AiProvider | undefined) ?? "openai";
+  const raw = (process.env.AI_PROVIDER as AiProvider | undefined) ?? "openai";
+  if (raw === "anthropic" || raw === "google" || raw === "openai") {
+    return raw;
+  }
+  return "openai";
 }
 
 /** True when a real API key is configured for the active provider. */
 function hasLiveCredentials(): boolean {
   const provider = getProvider();
-  const key = provider === "anthropic" ? process.env.ANTHROPIC_API_KEY : process.env.OPENAI_API_KEY;
-  return Boolean(key && key.trim().length > 0);
+  if (provider === "anthropic") {
+    return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  }
+  if (provider === "google") {
+    return Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim());
+  }
+  return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
 
 function getModel() {
@@ -25,6 +35,14 @@ function getModel() {
     return anthropic(process.env.AI_MODEL ?? "claude-3-5-sonnet-latest");
   }
 
+  if (provider === "google") {
+    const google = createGoogleGenerativeAI({
+      apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+    });
+    // Prefer a light model on free tier; override with AI_MODEL in Vercel.
+    return google(process.env.AI_MODEL ?? "gemini-1.5-flash-8b");
+  }
+
   const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
   return openai(process.env.AI_MODEL ?? "gpt-4o");
 }
@@ -32,6 +50,13 @@ function getModel() {
 interface GenerateInsightArgs {
   /** Code snippet, error log, or metrics summary to analyze. */
   context: string;
+}
+
+export type InsightGenerationMode = "LLM" | "HEURISTIC";
+
+export interface GeneratedRepoInsight {
+  insight: RepoInsight;
+  mode: InsightGenerationMode;
 }
 
 /**
@@ -44,6 +69,8 @@ export async function generateInsight({ context }: GenerateInsightArgs): Promise
     model: getModel(),
     system: buildInsightPrompt(),
     prompt: context,
+    // Free-tier Gemini quotas are shared; retries turn one 429 into 3 burned calls.
+    maxRetries: 0,
   });
 
   return text;
@@ -51,17 +78,17 @@ export async function generateInsight({ context }: GenerateInsightArgs): Promise
 
 /**
  * Runs the structured "Insight Automatizado" analysis: sends the extracted
- * GitHub/API context to the configured LLM (OpenAI or Anthropic, via the
- * Vercel AI SDK) and returns a score, severity, summary and Markdown
+ * GitHub/API context to the configured LLM (OpenAI, Anthropic, or Google Gemini
+ * via the Vercel AI SDK) and returns a score, severity, summary and Markdown
  * suggestions ready to persist into `AnalysisResult`.
  *
  * Falls back to a deterministic, heuristics-based mock when no API key is
  * configured (or the live call fails), so the full pipeline (fetch -> AI ->
  * persist -> UI) can always be demoed end-to-end without external credentials.
  */
-export async function generateRepoInsight(context: string): Promise<RepoInsight> {
+export async function generateRepoInsight(context: string): Promise<GeneratedRepoInsight> {
   if (!hasLiveCredentials()) {
-    return buildMockInsight(context);
+    return { insight: buildMockInsight(context), mode: "HEURISTIC" };
   }
 
   try {
@@ -70,11 +97,13 @@ export async function generateRepoInsight(context: string): Promise<RepoInsight>
       system: buildInsightPrompt(),
       prompt: context,
       schema: repoInsightSchema,
+      // One attempt only: automatic retries amplify 429 rate-limit burns on Gemini free tier.
+      maxRetries: 0,
     });
-    return object;
+    return { insight: object, mode: "LLM" };
   } catch (error) {
     console.error("[ai/client] Live LLM call failed, falling back to mock insight:", error);
-    return buildMockInsight(context);
+    return { insight: buildMockInsight(context), mode: "HEURISTIC" };
   }
 }
 

@@ -24,7 +24,7 @@ export function AuthShell({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "40px 16px",
+        padding: "24px 16px",
         backgroundColor: "#09090b",
         color: "#f4f4f5",
         fontFamily:
@@ -38,7 +38,7 @@ export function AuthShell({
           borderRadius: 24,
           border: "1px solid #27272a",
           backgroundColor: "#18181b",
-          padding: 32,
+          padding: "24px 20px",
           boxShadow: "0 10px 40px rgba(0,0,0,0.35)",
         }}
       >

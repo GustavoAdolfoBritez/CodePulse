@@ -62,10 +62,70 @@ export function buildRepoAnalysisContext(input: {
   pushedAt: string | null;
   rootEntries: string[];
   commits: Array<{ sha: string; message: string; author: string | null; date: string | null }>;
+  health?: {
+    hasReadme: boolean;
+    hasLicense: boolean;
+    hasCiWorkflows: boolean;
+    workflowFiles: string[];
+    hasDependabot: boolean;
+    hasCodeowners: boolean;
+    hasSecurityPolicy: boolean;
+    hasDockerfile: boolean;
+    hasEnvExample: boolean;
+    hasLockfile: boolean;
+    hasEslint: boolean;
+    hasTestsHint: boolean;
+    packageManager: string | null;
+    dependencyCount: number | null;
+    devDependencyCount: number | null;
+    npmScripts: string[];
+    openPullRequests: number | null;
+    languages: Record<string, number>;
+    topics: string[];
+    licenseSpdx: string | null;
+    visibility: string | null;
+    archived: boolean;
+    isFork: boolean;
+  };
 }): string {
   const commitLines = input.commits
     .map((c) => `- ${c.sha} ${c.message}${c.author ? ` (${c.author})` : ""}`)
     .join("\n");
+
+  const health = input.health;
+  const languageLines = health
+    ? Object.entries(health.languages)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([name, bytes]) => `- ${name}: ${bytes} bytes`)
+        .join("\n")
+    : "";
+
+  const healthBlock = health
+    ? `
+## Engineering health signals
+- Visibility: ${health.visibility ?? "unknown"} | Archived: ${health.archived ? "yes" : "no"} | Fork: ${health.isFork ? "yes" : "no"}
+- License: ${health.licenseSpdx ?? (health.hasLicense ? "present" : "missing")}
+- README: ${health.hasReadme ? "yes" : "no"}
+- CI workflows: ${health.hasCiWorkflows ? "yes" : "no"}${health.workflowFiles.length ? ` (${health.workflowFiles.join(", ")})` : ""}
+- Dependabot: ${health.hasDependabot ? "yes" : "no"}
+- CODEOWNERS: ${health.hasCodeowners ? "yes" : "no"}
+- SECURITY.md: ${health.hasSecurityPolicy ? "yes" : "no"}
+- Dockerfile/compose: ${health.hasDockerfile ? "yes" : "no"}
+- Env sample (.env.example): ${health.hasEnvExample ? "yes" : "no"}
+- Lockfile: ${health.hasLockfile ? "yes" : "no"}
+- ESLint config: ${health.hasEslint ? "yes" : "no"}
+- Tests hint (folder/name): ${health.hasTestsHint ? "yes" : "no"}
+- Package manager: ${health.packageManager ?? "n/a"}
+- Dependencies: ${health.dependencyCount ?? "n/a"} | DevDependencies: ${health.devDependencyCount ?? "n/a"}
+- npm scripts: ${health.npmScripts.length ? health.npmScripts.join(", ") : "n/a"}
+- Open pull requests: ${health.openPullRequests ?? "n/a"}
+- Topics: ${health.topics.length ? health.topics.join(", ") : "(none)"}
+
+## Languages (by bytes)
+${languageLines || "(unavailable)"}
+`
+    : "";
 
   return `## Repository
 - Name: ${input.fullName}
@@ -74,7 +134,7 @@ export function buildRepoAnalysisContext(input: {
 - Default branch: ${input.defaultBranch}
 - Stars: ${input.stars} | Forks: ${input.forks} | Open issues: ${input.openIssues}
 - Last push: ${input.pushedAt ?? "unknown"}
-
+${healthBlock}
 ## Top-level files/folders
 ${input.rootEntries.length ? input.rootEntries.map((e) => `- ${e}`).join("\n") : "(empty repository)"}
 

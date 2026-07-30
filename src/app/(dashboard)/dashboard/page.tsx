@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  BellRing,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
@@ -38,7 +37,7 @@ export default async function DashboardPage() {
   const monthStart = startOfMonth(now);
   const trendStart = startOfWeek(subWeeks(now, 7), { weekStartsOn: 1 });
 
-  const [projects, analysesThisMonth, unreadNotifications, trendResults] = await Promise.all([
+  const [projects, analysesThisMonth, trendResults] = await Promise.all([
     prisma.project.findMany({
       where: { organizationId: organization.id },
       include: {
@@ -54,9 +53,6 @@ export default async function DashboardPage() {
         status: { in: ["COMPLETED", "FAILED"] },
         createdAt: { gte: monthStart },
       },
-    }),
-    prisma.notification.count({
-      where: { organizationId: organization.id, read: false },
     }),
     prisma.analysisResult.findMany({
       where: {
@@ -134,8 +130,8 @@ export default async function DashboardPage() {
         subtitle="Estado general de tus repositorios y APIs monitoreadas"
         actions={<BatchAuditButton />}
       />
-      <main className="flex-1 space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <main className="flex-1 space-y-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           <StatCard
             title="Salud promedio del código"
             metric={`${averageHealth}/100`}
@@ -157,12 +153,6 @@ export default async function DashboardPage() {
             deltaType={analysesDelta.type}
             icon={Sparkles}
             trend={chartData.map((row) => Number(row["Análisis"] ?? 0))}
-          />
-          <StatCard
-            title="Alertas no leídas"
-            metric={String(unreadNotifications)}
-            icon={BellRing}
-            trend={[Math.max(unreadNotifications - 2, 0), Math.max(unreadNotifications - 1, 0), unreadNotifications]}
           />
         </div>
 
